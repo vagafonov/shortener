@@ -16,7 +16,7 @@ func NewService(storage storage.Storage) *Service {
 }
 
 func (s *Service) MakeShortURL(url string) string {
-	if val := s.storage.GetByValue(url); val != "" {
+	if val := s.storage.GetByHash(url); val != "" {
 		return val
 	}
 
@@ -27,5 +27,5 @@ func (s *Service) MakeShortURL(url string) string {
 }
 
 func (s *Service) GetShortURL(url string) string {
-	return s.storage.GetByKey(url)
+	return s.storage.GetByHash(url)
 }

@@ -6,9 +6,9 @@ type Container struct {
 	storage storage.Storage
 }
 
-func NewContainer() *Container {
+func NewContainer(s storage.Storage) *Container {
 	return &Container{
-		storage: storage.NewMemoryStorage(),
+		storage: s,
 	}
 }
 

@@ -10,7 +10,7 @@ func NewMemoryStorage() *MemoryStorage {
 	}
 }
 
-func (s *MemoryStorage) GetByKey(key string) string {
+func (s *MemoryStorage) GetByHash(key string) string {
 	if v, ok := s.storage[key]; ok {
 		return v
 	}
@@ -28,13 +28,10 @@ func (s *MemoryStorage) GetByValue(key string) string {
 }
 
 func (s *MemoryStorage) Set(key string, value string) error {
-	if v := s.GetByKey(key); v != "" {
+	if v := s.GetByHash(key); v != "" {
 		return ErrAlreadyExists
 	}
 
-	if v := s.GetByValue(key); v != "" {
-		return ErrAlreadyExists
-	}
 	s.storage[key] = value
 	return nil
 }

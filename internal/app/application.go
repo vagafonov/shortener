@@ -27,41 +27,37 @@ func (a *Application) Serve() {
 }
 
 func (a *Application) Routes() {
-	a.mux.HandleFunc(`/`, a.route)
+	a.mux.HandleFunc(`/`, a.Route)
 }
 
-func (a *Application) route(res http.ResponseWriter, req *http.Request) {
+func (a *Application) Route(res http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodPost:
 		a.createShortURL(res, req)
-	default:
+	case http.MethodGet:
 		a.getShortURL(res, req)
-
+	default:
+		http.Error(res, "Only POST or GET requests are allowed!", http.StatusMethodNotAllowed)
 	}
 }
 
 func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-		return
-	}
-
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	shortURL := NewService(a.container.GetStorage()).MakeShortURL(string(body))
-	res.WriteHeader(http.StatusCreated)
-	res.Write([]byte(host + shortURL))
+
+	if string(body) == "" {
+		res.WriteHeader(http.StatusBadRequest)
+	} else {
+		shortURL := NewService(a.container.GetStorage()).MakeShortURL(string(body))
+		res.WriteHeader(http.StatusCreated)
+		res.Write([]byte(host + shortURL))
+	}
 }
 
 func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
-		return
-	}
-
 	shortURL := NewService(a.container.GetStorage()).GetShortURL(strings.Trim(req.URL.String(), "/"))
 	if shortURL == "" {
 		res.WriteHeader(http.StatusBadRequest)
