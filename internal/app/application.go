@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
 	"strings"
@@ -19,26 +20,20 @@ func NewApplication(cnt *Container) *Application {
 
 func (a *Application) Serve() {
 	a.mux = http.NewServeMux()
-	a.Routes()
-	err := http.ListenAndServe(`:8080`, a.mux)
+	routes := a.Routes()
+	err := http.ListenAndServe(`:8080`, routes)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (a *Application) Routes() {
-	a.mux.HandleFunc(`/`, a.Route)
-}
-
-func (a *Application) Route(res http.ResponseWriter, req *http.Request) {
-	switch req.Method {
-	case http.MethodPost:
-		a.createShortURL(res, req)
-	case http.MethodGet:
-		a.getShortURL(res, req)
-	default:
-		http.Error(res, "Only POST or GET requests are allowed!", http.StatusMethodNotAllowed)
-	}
+func (a *Application) Routes() *chi.Mux {
+	r := chi.NewRouter()
+	r.Route("/", func(r chi.Router) {
+		r.Get("/", a.getShortURL)
+		r.Post("/", a.createShortURL)
+	})
+	return r
 }
 
 func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request) {
