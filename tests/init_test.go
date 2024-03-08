@@ -13,7 +13,7 @@ type FunctionalTestSuite struct {
 	st  storage.Storage
 }
 
-func TestExampleTestSuite(t *testing.T) {
+func TestFunctionalTestSuite(t *testing.T) {
 	suite.Run(t, new(FunctionalTestSuite))
 }
 
