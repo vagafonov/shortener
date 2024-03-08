@@ -1,9 +1,12 @@
 package app
 
 import (
+	"github.com/vagafonov/shrinkr/pkg/entity"
 	hash "github.com/vagafonov/shrinkr/pkg/hasher"
 	"github.com/vagafonov/shrinkr/pkg/storage"
 )
+
+const ShortURLLength = 8
 
 type Service struct {
 	storage storage.Storage
@@ -15,17 +18,19 @@ func NewService(storage storage.Storage) *Service {
 	}
 }
 
-func (s *Service) MakeShortURL(url string) string {
-	if val := s.storage.GetByHash(url); val != "" {
-		return val
+func (s *Service) MakeShortURL(url string) (*entity.URL, error) {
+	if shortURL := s.storage.GetByValue(url); shortURL != nil {
+		return shortURL, nil
 	}
 
-	//fmt.Println("creating new url")
-	h := hash.NewStringHasher().Hash(8)
-	s.storage.Set(h, url)
-	return h
+	h := hash.NewStringHasher().Hash(ShortURLLength)
+	shortURL, err := s.storage.Add(h, url)
+	if err != nil {
+		return nil, err
+	}
+	return shortURL, nil
 }
 
-func (s *Service) GetShortURL(url string) string {
+func (s *Service) GetShortURL(url string) *entity.URL {
 	return s.storage.GetByHash(url)
 }

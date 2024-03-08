@@ -4,14 +4,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
-	"strings"
 )
 
 const host = "http://localhost:8080/"
 
 type Application struct {
 	container *Container
-	mux       *http.ServeMux
 }
 
 func NewApplication(cnt *Container) *Application {
@@ -19,9 +17,7 @@ func NewApplication(cnt *Container) *Application {
 }
 
 func (a *Application) Serve() {
-	a.mux = http.NewServeMux()
-	routes := a.Routes()
-	err := http.ListenAndServe(`:8080`, routes)
+	err := http.ListenAndServe(`:8080`, a.Routes())
 	if err != nil {
 		panic(err)
 	}
@@ -29,10 +25,10 @@ func (a *Application) Serve() {
 
 func (a *Application) Routes() *chi.Mux {
 	r := chi.NewRouter()
-	r.Route("/", func(r chi.Router) {
-		r.Get("/", a.getShortURL)
-		r.Post("/", a.createShortURL)
-	})
+
+	r.Get("/{short_url}", a.getShortURL)
+	r.Post("/", a.createShortURL)
+
 	return r
 }
 
@@ -46,18 +42,26 @@ func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request)
 	if string(body) == "" {
 		res.WriteHeader(http.StatusBadRequest)
 	} else {
-		shortURL := NewService(a.container.GetStorage()).MakeShortURL(string(body))
+		shortURL, err := NewService(a.container.GetStorage()).MakeShortURL(string(body))
+		// TODO check error type
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+		}
 		res.WriteHeader(http.StatusCreated)
-		res.Write([]byte(host + shortURL))
+
+		if _, err := res.Write([]byte(host + shortURL.Short)); err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
 func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
-	shortURL := NewService(a.container.GetStorage()).GetShortURL(strings.Trim(req.URL.String(), "/"))
-	if shortURL == "" {
+	shortURL := NewService(a.container.GetStorage()).GetShortURL(chi.URLParam(req, "short_url"))
+
+	if shortURL == nil {
 		res.WriteHeader(http.StatusBadRequest)
 	} else {
-		res.Header().Set("Location", shortURL)
+		res.Header().Set("Location", shortURL.Full)
 		res.WriteHeader(http.StatusTemporaryRedirect)
 	}
 }
