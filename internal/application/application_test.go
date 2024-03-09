@@ -1,7 +1,8 @@
-package app
+package application
 
 import (
 	"github.com/stretchr/testify/suite"
+	"github.com/vagafonov/shrinkr/config"
 	"github.com/vagafonov/shrinkr/pkg/storage"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ type FunctionalTestSuite struct {
 	suite.Suite
 	app *Application
 	st  storage.Storage
+	cfg *config.Config
 }
 
 func TestFunctionalTestSuite(t *testing.T) {
@@ -21,8 +23,10 @@ func TestFunctionalTestSuite(t *testing.T) {
 }
 
 func (s *FunctionalTestSuite) SetupSuite() {
+
 	s.st = storage.NewMemoryStorage()
-	s.app = NewApplication(NewContainer(s.st))
+	s.cfg = config.NewConfig("test", "http://test:8080")
+	s.app = NewApplication(NewContainer(s.cfg, s.st))
 }
 
 func (s *FunctionalTestSuite) TestCreateURL() {
@@ -49,7 +53,7 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 			if test.result != "" {
 				u, err := url.Parse(w.Body.String())
 				s.Require().NoError(err)
-				s.Require().Len(strings.Trim(u.Path, "/"), ShortURLLength)
+				s.Require().Len(strings.Trim(u.Path, "/"), s.cfg.ShortURLLength)
 			}
 		})
 	}

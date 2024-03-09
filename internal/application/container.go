@@ -1,13 +1,18 @@
-package app
+package application
 
-import "github.com/vagafonov/shrinkr/pkg/storage"
+import (
+	"github.com/vagafonov/shrinkr/config"
+	"github.com/vagafonov/shrinkr/pkg/storage"
+)
 
 type Container struct {
+	config  *config.Config
 	storage storage.Storage
 }
 
-func NewContainer(s storage.Storage) *Container {
+func NewContainer(cfg *config.Config, s storage.Storage) *Container {
 	return &Container{
+		config:  cfg,
 		storage: s,
 	}
 }

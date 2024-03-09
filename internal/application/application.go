@@ -1,23 +1,23 @@
-package app
+package application
 
 import (
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
 )
 
-const host = "http://localhost:8080/"
-
 type Application struct {
-	container *Container
+	cnt *Container
 }
 
 func NewApplication(cnt *Container) *Application {
-	return &Application{container: cnt}
+	return &Application{cnt: cnt}
 }
 
 func (a *Application) Serve() {
-	err := http.ListenAndServe(`:8080`, a.Routes())
+	fmt.Println(a.cnt.config.ServerURL)
+	err := http.ListenAndServe(a.cnt.config.ServerURL, a.Routes())
 	if err != nil {
 		panic(err)
 	}
@@ -42,21 +42,21 @@ func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request)
 	if string(body) == "" {
 		res.WriteHeader(http.StatusBadRequest)
 	} else {
-		shortURL, err := NewService(a.container.GetStorage()).MakeShortURL(string(body))
+		shortURL, err := NewService(a.cnt.GetStorage()).MakeShortURL(string(body), a.cnt.config.ShortURLLength)
 		// TODO check error type
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 		}
 		res.WriteHeader(http.StatusCreated)
 
-		if _, err := res.Write([]byte(host + shortURL.Short)); err != nil {
+		if _, err := res.Write([]byte(a.cnt.config.ResultURL + "/" + shortURL.Short)); err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 		}
 	}
 }
 
 func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
-	shortURL := NewService(a.container.GetStorage()).GetShortURL(chi.URLParam(req, "short_url"))
+	shortURL := NewService(a.cnt.GetStorage()).GetShortURL(chi.URLParam(req, "short_url"))
 
 	if shortURL == nil {
 		res.WriteHeader(http.StatusBadRequest)
