@@ -2,9 +2,11 @@ package application
 
 import (
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/vagafonov/shortener/internal/application/services"
 )
 
 type Application struct {
@@ -15,17 +17,17 @@ func NewApplication(cnt *Container) *Application {
 	return &Application{cnt: cnt}
 }
 
-func (a *Application) Serve() {
-	fmt.Println(a.cnt.config.ServerURL)
-	err := http.ListenAndServe(a.cnt.config.ServerURL, a.Routes())
+func (a *Application) Serve() error {
+	err := http.ListenAndServe(a.cnt.cfg.ServerURL, a.Routes()) //nolint:gosec
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 func (a *Application) Routes() *chi.Mux {
 	r := chi.NewRouter()
-
 	r.Get("/{short_url}", a.getShortURL)
 	r.Post("/", a.createShortURL)
 
@@ -36,32 +38,34 @@ func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request)
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
-	if string(body) == "" {
+	if len(body) == 0 {
 		res.WriteHeader(http.StatusBadRequest)
-	} else {
-		shortURL, err := NewService(a.cnt.GetStorage()).MakeShortURL(string(body), a.cnt.config.ShortURLLength)
-		// TODO check error type
-		if err != nil {
-			http.Error(res, err.Error(), http.StatusInternalServerError)
-		}
-		res.WriteHeader(http.StatusCreated)
 
-		if _, err := res.Write([]byte(a.cnt.config.ResultURL + "/" + shortURL.Short)); err != nil {
-			http.Error(res, err.Error(), http.StatusInternalServerError)
-		}
+		return
+	}
+	shortURL, err := services.NewService(a.cnt.GetStorage()).MakeShortURL(string(body), a.cnt.cfg.ShortURLLength)
+	// TODO check error type
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
+	res.WriteHeader(http.StatusCreated)
+
+	if _, err := fmt.Fprintf(res, "%s/%s", a.cnt.cfg.ResultURL, shortURL.Short); err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
-	shortURL := NewService(a.cnt.GetStorage()).GetShortURL(chi.URLParam(req, "short_url"))
-
+	shortURL := services.NewService(a.cnt.GetStorage()).GetShortURL(chi.URLParam(req, "short_url"))
 	if shortURL == nil {
-		res.WriteHeader(http.StatusBadRequest)
-	} else {
-		res.Header().Set("Location", shortURL.Full)
-		res.WriteHeader(http.StatusTemporaryRedirect)
+		res.WriteHeader(http.StatusNotFound)
+
+		return
 	}
+	res.Header().Set("Location", shortURL.Full)
+	res.WriteHeader(http.StatusTemporaryRedirect)
 }

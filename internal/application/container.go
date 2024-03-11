@@ -1,25 +1,25 @@
 package application
 
 import (
-	"github.com/vagafonov/shrinkr/config"
-	"github.com/vagafonov/shrinkr/pkg/storage"
+	"github.com/vagafonov/shortener/internal/application/storage"
+	"github.com/vagafonov/shortener/internal/config"
 )
 
 type Container struct {
-	config  *config.Config
-	storage storage.Storage
+	cfg *config.Config
+	srg storage.Storage
 }
 
 func NewContainer(cfg *config.Config, s storage.Storage) *Container {
 	return &Container{
-		config:  cfg,
-		storage: s,
+		cfg: cfg,
+		srg: s,
 	}
 }
 
 func (c *Container) GetStorage() storage.Storage {
-	if c.storage != nil {
-		return c.storage
+	if c.srg != nil {
+		return c.srg
 	}
 
 	return storage.NewMemoryStorage()

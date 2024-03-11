@@ -1,18 +1,20 @@
 package storage
 
-import "github.com/vagafonov/shrinkr/pkg/entity"
+import (
+	"github.com/vagafonov/shortener/pkg/entity"
+)
 
-type MemoryStorage struct {
+type memoryStorage struct {
 	storage map[string]string
 }
 
-func NewMemoryStorage() *MemoryStorage {
-	return &MemoryStorage{
+func NewMemoryStorage() Storage {
+	return &memoryStorage{
 		storage: make(map[string]string),
 	}
 }
 
-func (s *MemoryStorage) GetByHash(key string) *entity.URL {
+func (s *memoryStorage) GetByHash(key string) *entity.URL {
 	if v, ok := s.storage[key]; ok {
 		return &entity.URL{
 			Short: key,
@@ -23,7 +25,7 @@ func (s *MemoryStorage) GetByHash(key string) *entity.URL {
 	return nil
 }
 
-func (s *MemoryStorage) GetByValue(val string) *entity.URL {
+func (s *memoryStorage) GetByValue(val string) *entity.URL {
 	for k, v := range s.storage {
 		if val == v {
 			return &entity.URL{
@@ -32,25 +34,26 @@ func (s *MemoryStorage) GetByValue(val string) *entity.URL {
 			}
 		}
 	}
+
 	return nil
 }
 
-func (s *MemoryStorage) Add(key string, value string) (*entity.URL, error) {
+func (s *memoryStorage) Add(key string, value string) (*entity.URL, error) {
 	if shortURL := s.GetByHash(key); shortURL != nil {
 		return nil, ErrAlreadyExists
 	}
 	if shortURL := s.GetByValue(value); shortURL != nil {
 		return nil, ErrAlreadyExists
 	}
-
 	s.storage[key] = value
+
 	return &entity.URL{
 		Short: key,
 		Full:  value,
 	}, nil
 }
 
-func (s *MemoryStorage) GetAll() []entity.URL {
+func (s *memoryStorage) GetAll() []entity.URL {
 	res := make([]entity.URL, len(s.storage))
 	i := 0
 	for k, v := range s.storage {
@@ -60,9 +63,10 @@ func (s *MemoryStorage) GetAll() []entity.URL {
 		}
 		i++
 	}
+
 	return res
 }
 
-func (s *MemoryStorage) Truncate() {
+func (s *memoryStorage) Truncate() {
 	clear(s.storage)
 }

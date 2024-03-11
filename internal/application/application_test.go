@@ -1,20 +1,22 @@
 package application
 
 import (
-	"github.com/stretchr/testify/suite"
-	"github.com/vagafonov/shrinkr/config"
-	"github.com/vagafonov/shrinkr/pkg/storage"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
+	storage2 "github.com/vagafonov/shortener/internal/application/storage"
+	"github.com/vagafonov/shortener/internal/config"
 )
 
 type FunctionalTestSuite struct {
 	suite.Suite
 	app *Application
-	st  storage.Storage
+	st  storage2.Storage
 	cfg *config.Config
 }
 
@@ -23,8 +25,7 @@ func TestFunctionalTestSuite(t *testing.T) {
 }
 
 func (s *FunctionalTestSuite) SetupSuite() {
-
-	s.st = storage.NewMemoryStorage()
+	s.st = storage2.NewMemoryStorage()
 	s.cfg = config.NewConfig("test", "http://test:8080")
 	s.app = NewApplication(NewContainer(s.cfg, s.st))
 }
@@ -32,25 +33,23 @@ func (s *FunctionalTestSuite) SetupSuite() {
 func (s *FunctionalTestSuite) TestCreateURL() {
 	tests := []struct {
 		method string
-		URL    string
 		body   string
 		code   int
-		result string
 	}{
-		{method: http.MethodPost, URL: "/", body: "https://practicum.yandex.ru", code: http.StatusCreated, result: "1"},
-		{method: http.MethodPost, URL: "/", body: "https://practicum.yandex.ru", code: http.StatusCreated, result: "2"},
-		{method: http.MethodPost, URL: "/", body: "", code: http.StatusBadRequest},
+		{method: http.MethodPost, body: "https://practicum.yandex.ru", code: http.StatusCreated},
+		{method: http.MethodPost, body: "https://practicum.yandex.ru", code: http.StatusCreated},
+		{method: http.MethodPost, body: "", code: http.StatusBadRequest},
 	}
 	ts := httptest.NewServer(s.app.Routes())
 	defer ts.Close()
 
 	for _, test := range tests {
 		s.Run(test.method, func() {
-			r := httptest.NewRequest(test.method, test.URL, strings.NewReader(test.body))
+			r := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
 			w := httptest.NewRecorder()
 			s.app.createShortURL(w, r)
 			s.Require().Equal(test.code, w.Code)
-			if test.result != "" {
+			if test.code == http.StatusCreated {
 				u, err := url.Parse(w.Body.String())
 				s.Require().NoError(err)
 				s.Require().Len(strings.Trim(u.Path, "/"), s.cfg.ShortURLLength)
@@ -63,6 +62,7 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 }
 
 func (s *FunctionalTestSuite) TestGetURL() {
+	ctx := context.Background()
 	tests := []struct {
 		method   string
 		URL      string
@@ -71,6 +71,7 @@ func (s *FunctionalTestSuite) TestGetURL() {
 	}{
 		{method: http.MethodGet, URL: "/test", code: http.StatusTemporaryRedirect, location: "https://practicum.yandex.ru"},
 		{method: http.MethodGet, URL: "/", code: http.StatusMethodNotAllowed, location: ""},
+		{method: http.MethodGet, URL: "/undefined-short-url", code: http.StatusNotFound, location: ""},
 	}
 	ts := httptest.NewServer(s.app.Routes())
 	defer ts.Close()
@@ -79,7 +80,7 @@ func (s *FunctionalTestSuite) TestGetURL() {
 	s.Require().NoError(err)
 	for _, test := range tests {
 		s.Run(test.method, func() {
-			r, err := http.NewRequest(test.method, ts.URL+test.URL, nil)
+			r, err := http.NewRequestWithContext(ctx, test.method, ts.URL+test.URL, nil)
 			s.Require().NoError(err)
 
 			cli := ts.Client()

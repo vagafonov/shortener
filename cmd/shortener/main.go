@@ -1,41 +1,32 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"github.com/caarlos0/env/v6"
-	"github.com/vagafonov/shrinkr/config"
-	"github.com/vagafonov/shrinkr/internal/application"
-	"github.com/vagafonov/shrinkr/pkg/storage"
 	"log"
+
+	"github.com/vagafonov/shortener/internal/application"
+	"github.com/vagafonov/shortener/internal/application/storage"
+	"github.com/vagafonov/shortener/internal/config"
 )
 
-var options struct {
+type options struct {
 	ServerURL string `env:"SERVER_ADDRESS"`
 	ResultURL string `env:"BASE_URL"`
 }
 
 func main() {
-	parseFlags()
-	parseEnv()
+	opt := &options{
+		ServerURL: "",
+		ResultURL: "",
+	}
+	parseFlags(opt)
+	parseEnv(opt)
+
 	cnt := application.NewContainer(
-		config.NewConfig(options.ServerURL, options.ResultURL),
+		config.NewConfig(opt.ServerURL, opt.ResultURL),
 		storage.NewMemoryStorage(),
 	)
 	app := application.NewApplication(cnt)
-	app.Serve()
-}
-
-func parseFlags() {
-	flag.StringVar(&options.ServerURL, "a", "localhost:8080", "address and port to run server")
-	flag.StringVar(&options.ResultURL, "b", "http://localhost:8080", "address and port for result short url")
-	flag.Parse()
-}
-
-func parseEnv() {
-	err := env.Parse(&options)
-	fmt.Println(options)
-	if err != nil {
+	if err := app.Serve(); err != nil {
 		log.Fatal(err)
 	}
 }

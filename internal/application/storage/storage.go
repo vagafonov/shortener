@@ -2,10 +2,10 @@ package storage
 
 import (
 	"errors"
-	"github.com/vagafonov/shrinkr/pkg/entity"
+
+	"github.com/vagafonov/shortener/pkg/entity"
 )
 
-// var ErrNotFound = errors.New("not found")
 var ErrAlreadyExists = errors.New("already exists")
 
 type Storage interface {
