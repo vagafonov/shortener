@@ -1,0 +1,27 @@
+linters:
+  enable-all: true
+  disable:
+    - wsl
+    - dupword
+    - depguard
+    - godox
+    - wrapcheck
+    - varnamelen
+    - ireturn
+    - gochecknoglobals
+linters-settings:
+  goconst:
+    ignore-tests: true
+    min-len: 5
+  revive:
+    rules:
+      - name: unused-parameter
+        disabled: true
+issues:
+  exclude-rules:
+    - path: (.+)_test.go
+      linters:
+        - depguard
+        - scopelint
+        - testpackage
+        - paralleltest
