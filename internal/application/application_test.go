@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	storage2 "github.com/vagafonov/shortener/internal/application/storage"
 	"github.com/vagafonov/shortener/internal/config"
+	"github.com/vagafonov/shortener/pkg/entity"
 )
 
 type FunctionalTestSuite struct {
@@ -53,6 +55,46 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 				u, err := url.Parse(w.Body.String())
 				s.Require().NoError(err)
 				s.Require().Len(strings.Trim(u.Path, "/"), s.cfg.ShortURLLength)
+			}
+		})
+	}
+	s.Require().Len(s.st.GetAll(), 1, "exists doubles for same url")
+	// TODO move to tearDown
+	s.st.Truncate()
+}
+
+func (s *FunctionalTestSuite) TestApiShorten() {
+	tests := []struct {
+		method string
+		body   string
+		code   int
+	}{
+		{method: http.MethodPost, body: `{"url":"https://practicum.yandex.ru"}`, code: http.StatusCreated},
+		{method: http.MethodPost, body: `{"url":"https://practicum.yandex.ru"}`, code: http.StatusCreated},
+		{method: http.MethodPost, body: "{,}", code: http.StatusBadRequest},
+	}
+	ts := httptest.NewServer(s.app.Routes())
+	defer ts.Close()
+
+	for _, test := range tests {
+		s.Run(test.method, func() {
+			r := httptest.NewRequest(test.method, "/api/shorten", strings.NewReader(test.body))
+			w := httptest.NewRecorder()
+			s.app.shorten(w, r)
+			s.Require().Equal(test.code, w.Code)
+
+			if w.Body.Bytes() != nil {
+				decoder := json.NewDecoder(w.Body)
+				var resp entity.ShortenResponse
+				err := decoder.Decode(&resp)
+				s.Require().NoError(err)
+
+				if test.code == http.StatusCreated {
+					u, err := url.Parse(resp.Result)
+					s.Require().NoError(err)
+					s.Require().Len(strings.Trim(u.Path, "/"), s.cfg.ShortURLLength)
+					s.Require().Equal("application/json", w.Header().Get("content-type"))
+				}
 			}
 		})
 	}
