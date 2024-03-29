@@ -7,11 +7,13 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
 	"github.com/vagafonov/shortener/internal/application/services"
+	"github.com/vagafonov/shortener/pkg/compress"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
@@ -45,6 +47,7 @@ func (a *Application) Routes() *chi.Mux {
 	r := chi.NewRouter()
 	// Middleware для логирования запросов
 	r.Use(a.withLogging)
+	r.Use(a.withCompress)
 	r.Get("/{short_url}", a.getShortURL)
 	r.Post("/", a.createShortURL)
 	r.Post("/api/", a.createShortURL)
@@ -69,7 +72,10 @@ func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request)
 
 		return
 	}
-	shortURL, err := services.NewService(a.cnt.GetStorage()).MakeShortURL(string(body), a.cnt.cfg.ShortURLLength)
+	shortURL, err := services.NewService(
+		a.cnt.GetStorage(),
+		a.cnt.GetHasher(),
+	).MakeShortURL(string(body), a.cnt.cfg.ShortURLLength)
 	// TODO check error type
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
@@ -99,7 +105,10 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	shortURL, err := services.NewService(a.cnt.GetStorage()).MakeShortURL(shortenReq.URL, a.cnt.cfg.ShortURLLength)
+	shortURL, err := services.NewService(
+		a.cnt.GetStorage(),
+		a.cnt.GetHasher(),
+	).MakeShortURL(shortenReq.URL, a.cnt.cfg.ShortURLLength)
 	if err != nil {
 		a.logger.Warn().Str("error", err.Error()).Msg("cannot make short")
 		res.WriteHeader(http.StatusInternalServerError)
@@ -128,7 +137,7 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 }
 
 func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
-	shortURL := services.NewService(a.cnt.GetStorage()).GetShortURL(chi.URLParam(req, "short_url"))
+	shortURL := services.NewService(a.cnt.GetStorage(), a.cnt.GetHasher()).GetShortURL(chi.URLParam(req, "short_url"))
 	if shortURL == nil {
 		res.WriteHeader(http.StatusNotFound)
 
@@ -154,5 +163,45 @@ func (a *Application) withLogging(next http.Handler) http.Handler {
 		l.Dur("duration", time.Since(start))
 		l.Int("status", lw.responseData.status)
 		l.Int("size", lw.responseData.size).Send()
+	})
+}
+
+// middleware для сжатия.
+func (a *Application) withCompress(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		originalWriter := w
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		supportsGzip := strings.Contains(acceptEncoding, "gzip")
+		gzipContents := map[string]struct{}{
+			"application/json": {},
+			"text/html":        {},
+		}
+
+		_, foundGzipFormat := gzipContents[r.Header.Get("Content-Type")]
+
+		if supportsGzip || foundGzipFormat {
+			compressWriter := compress.NewCompressGzipWriter(w)
+			originalWriter = compressWriter
+			defer compressWriter.Close()
+		}
+
+		// проверяем, что клиент отправил серверу сжатые данные в формате gzip
+		contentEncoding := r.Header.Get("Content-Encoding")
+		sendsGzip := strings.Contains(contentEncoding, "gzip")
+		if sendsGzip {
+			compressReader, err := compress.NewCompressGzipReader(r.Body)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+
+				return
+			}
+			// меняем тело запроса на новое
+			r.Body = compressReader
+
+			defer compressReader.Close()
+		}
+
+		// передаём управление хендлеру
+		next.ServeHTTP(originalWriter, r)
 	})
 }
