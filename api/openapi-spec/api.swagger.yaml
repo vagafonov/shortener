@@ -1,0 +1,51 @@
+openapi: 3.0.3
+info:
+  title: Shortener
+  version: 1.0.0
+  contact: {}
+servers:
+  - url: '{{base_url}}'
+paths:
+  /:
+    get:
+      summary: Get short url
+      description: Get short url
+      operationId: getShortUrl
+      responses:
+        '200':
+          description: ''
+    post:
+      summary: Create short url
+      description: Create short url
+      operationId: createShortUrl
+      requestBody:
+        content:
+          application/json:
+            examples:
+              Create short url:
+                value: http://ya.ru
+      responses:
+        '200':
+          description: ''
+  /api/shorten:
+    post:
+      summary: Api shorten
+      description: Api shorten
+      operationId: apiShorten
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  example: http://ya.ru
+            examples:
+              Api shorten:
+                value:
+                  url: http://ya.ru
+      responses:
+        '200':
+          description: ''
+tags: []
