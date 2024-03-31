@@ -10,21 +10,28 @@ import (
 )
 
 type options struct {
-	ServerURL string `env:"SERVER_ADDRESS"`
-	ResultURL string `env:"BASE_URL"`
+	ServerURL       string `env:"SERVER_ADDRESS"`
+	ResultURL       string `env:"BASE_URL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
 func main() {
 	opt := &options{
-		ServerURL: "",
-		ResultURL: "",
+		ServerURL:       "",
+		ResultURL:       "",
+		FileStoragePath: "",
 	}
 	parseFlags(opt)
 	parseEnv(opt)
 
+	fss, err := storage.NewFileSystemStorage(opt.FileStoragePath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	cnt := application.NewContainer(
-		config.NewConfig(opt.ServerURL, opt.ResultURL),
+		config.NewConfig(opt.ServerURL, opt.ResultURL, opt.FileStoragePath),
 		storage.NewMemoryStorage(),
+		fss,
 		hasher.NewRandHasher(),
 	)
 	app := application.NewApplication(cnt)

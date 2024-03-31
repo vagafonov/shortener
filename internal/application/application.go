@@ -6,36 +6,40 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog"
-	"github.com/vagafonov/shortener/internal/application/services"
 	"github.com/vagafonov/shortener/pkg/compress"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
 type Application struct {
-	cnt    *Container
-	logger zerolog.Logger
+	cnt     *Container
+	service Service
 }
 
 func NewApplication(cnt *Container) *Application {
-	// Инициализация логгера zerolog
-	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
-	// human-friendly и цветной output
-	logger = logger.Output(zerolog.ConsoleWriter{Out: os.Stderr}) //nolint:exhaustruct
-	// Уровень логирования
-	zerolog.SetGlobalLevel(cnt.cfg.LogLevel)
-
-	return &Application{cnt: cnt, logger: logger}
+	return &Application{
+		cnt: cnt,
+		service: NewService(
+			cnt.logger,
+			cnt.GetStorage(),
+			cnt.GetBackupStorage(),
+			cnt.GetHasher(),
+		),
+	}
 }
 
 func (a *Application) Serve() error {
-	a.logger.Info().Msgf("server started and listen %s", a.cnt.cfg.ServerURL)
-	err := http.ListenAndServe(a.cnt.cfg.ServerURL, a.Routes()) //nolint:gosec
+	restored, err := a.service.RestoreURLs(a.cnt.cfg.FileStoragePath)
+	if err != nil {
+		return err
+	}
+	a.cnt.logger.Info().Msgf("restored urls %v", restored)
+
+	a.cnt.logger.Info().Msgf("server started and listen %s", a.cnt.cfg.ServerURL)
+	err = http.ListenAndServe(a.cnt.cfg.ServerURL, a.Routes()) //nolint:gosec
 	if err != nil {
 		return err
 	}
@@ -72,8 +76,10 @@ func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request)
 
 		return
 	}
-	shortURL, err := services.NewService(
+	shortURL, err := NewService(
+		a.cnt.logger,
 		a.cnt.GetStorage(),
+		a.cnt.GetBackupStorage(),
 		a.cnt.GetHasher(),
 	).MakeShortURL(string(body), a.cnt.cfg.ShortURLLength)
 	// TODO check error type
@@ -91,7 +97,7 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(req.Body)
 	if err != nil {
-		a.logger.Warn().Str("error", err.Error()).Msg("cannot read body")
+		a.cnt.logger.Warn().Str("error", err.Error()).Msg("cannot read body")
 		res.WriteHeader(http.StatusInternalServerError)
 
 		return
@@ -99,18 +105,20 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 
 	var shortenReq entity.ShortenRequest
 	if err = json.Unmarshal(buf.Bytes(), &shortenReq); err != nil {
-		a.logger.Warn().Str("error", err.Error()).Str("request", buf.String()).Msg("cannot unmarshal request")
+		a.cnt.logger.Warn().Str("error", err.Error()).Str("request", buf.String()).Msg("cannot unmarshal request")
 		res.WriteHeader(http.StatusBadRequest)
 
 		return
 	}
 
-	shortURL, err := services.NewService(
+	shortURL, err := NewService(
+		a.cnt.logger,
 		a.cnt.GetStorage(),
+		a.cnt.GetBackupStorage(),
 		a.cnt.GetHasher(),
 	).MakeShortURL(shortenReq.URL, a.cnt.cfg.ShortURLLength)
 	if err != nil {
-		a.logger.Warn().Str("error", err.Error()).Msg("cannot make short")
+		a.cnt.logger.Warn().Str("error", err.Error()).Msg("cannot make short")
 		res.WriteHeader(http.StatusInternalServerError)
 
 		return
@@ -120,7 +128,7 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 		Result: fmt.Sprintf("%s/%s", a.cnt.cfg.ResultURL, shortURL.Short),
 	})
 	if err != nil {
-		a.logger.Warn().Str("error", err.Error()).Msg("cannot encode response to JSON")
+		a.cnt.logger.Warn().Str("error", err.Error()).Msg("cannot encode response to JSON")
 		res.WriteHeader(http.StatusInternalServerError)
 
 		return
@@ -130,14 +138,25 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusCreated)
 	_, err = res.Write(jsonRes)
 	if err != nil {
-		a.logger.Warn().Str("error", err.Error()).Msg("cannot encode response to JSON")
+		a.cnt.logger.Warn().Str("error", err.Error()).Msg("cannot encode response to JSON")
 
 		return
 	}
 }
 
 func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
-	shortURL := services.NewService(a.cnt.GetStorage(), a.cnt.GetHasher()).GetShortURL(chi.URLParam(req, "short_url"))
+	shortURL, err := NewService(
+		a.cnt.logger,
+		a.cnt.GetStorage(),
+		a.cnt.GetBackupStorage(),
+		a.cnt.GetHasher(),
+	).GetShortURL(chi.URLParam(req, "short_url"))
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
 	if shortURL == nil {
 		res.WriteHeader(http.StatusNotFound)
 
@@ -158,7 +177,7 @@ func (a *Application) withLogging(next http.Handler) http.Handler {
 				size:   0,
 			},
 		}
-		l := a.logger.Info().Str("URI", r.RequestURI)
+		l := a.cnt.logger.Info().Str("URI", r.RequestURI)
 		next.ServeHTTP(&lw, r)
 		l.Dur("duration", time.Since(start))
 		l.Int("status", lw.responseData.status)
