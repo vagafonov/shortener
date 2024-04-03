@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/vagafonov/shortener/pkg/compress"
+	"github.com/vagafonov/shortener/internal/middleware"
+	"github.com/vagafonov/shortener/internal/validate"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
@@ -50,8 +49,9 @@ func (a *Application) Serve() error {
 func (a *Application) Routes() *chi.Mux {
 	r := chi.NewRouter()
 	// Middleware для логирования запросов
-	r.Use(a.withLogging)
-	r.Use(a.withCompress)
+	mw := middleware.NewMiddleware(a.cnt.logger)
+	r.Use(mw.WithLogging)
+	r.Use(mw.WithCompress)
 	r.Get("/{short_url}", a.getShortURL)
 	r.Post("/", a.createShortURL)
 	r.Post("/api/", a.createShortURL)
@@ -103,20 +103,20 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var shortenReq entity.ShortenRequest
-	if err = json.Unmarshal(buf.Bytes(), &shortenReq); err != nil {
-		a.cnt.logger.Warn().Str("error", err.Error()).Str("request", buf.String()).Msg("cannot unmarshal request")
+	validatedRequest := validate.NewValidator(a.cnt.logger).ShortenRequest(buf)
+	if validatedRequest == nil {
 		res.WriteHeader(http.StatusBadRequest)
 
 		return
 	}
 
-	shortURL, err := NewService(
+	svc := NewService(
 		a.cnt.logger,
 		a.cnt.GetStorage(),
 		a.cnt.GetBackupStorage(),
 		a.cnt.GetHasher(),
-	).MakeShortURL(shortenReq.URL, a.cnt.cfg.ShortURLLength)
+	)
+	shortURL, err := svc.MakeShortURL(validatedRequest.URL, a.cnt.cfg.ShortURLLength)
 	if err != nil {
 		a.cnt.logger.Warn().Str("error", err.Error()).Msg("cannot make short")
 		res.WriteHeader(http.StatusInternalServerError)
@@ -164,63 +164,4 @@ func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
 	}
 	res.Header().Set("Location", shortURL.Full)
 	res.WriteHeader(http.StatusTemporaryRedirect)
-}
-
-// WithLogging middleware для логирования.
-func (a *Application) withLogging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		lw := loggingResponseWriter{
-			ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
-			responseData: &responseData{
-				status: 0,
-				size:   0,
-			},
-		}
-		l := a.cnt.logger.Info().Str("URI", r.RequestURI)
-		next.ServeHTTP(&lw, r)
-		l.Dur("duration", time.Since(start))
-		l.Int("status", lw.responseData.status)
-		l.Int("size", lw.responseData.size).Send()
-	})
-}
-
-// middleware для сжатия.
-func (a *Application) withCompress(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		originalWriter := w
-		acceptEncoding := r.Header.Get("Accept-Encoding")
-		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-		gzipContents := map[string]struct{}{
-			"application/json": {},
-			"text/html":        {},
-		}
-
-		_, foundGzipFormat := gzipContents[r.Header.Get("Content-Type")]
-
-		if supportsGzip || foundGzipFormat {
-			compressWriter := compress.NewCompressGzipWriter(w)
-			originalWriter = compressWriter
-			defer compressWriter.Close()
-		}
-
-		// проверяем, что клиент отправил серверу сжатые данные в формате gzip
-		contentEncoding := r.Header.Get("Content-Encoding")
-		sendsGzip := strings.Contains(contentEncoding, "gzip")
-		if sendsGzip {
-			compressReader, err := compress.NewCompressGzipReader(r.Body)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-
-				return
-			}
-			// меняем тело запроса на новое
-			r.Body = compressReader
-
-			defer compressReader.Close()
-		}
-
-		// передаём управление хендлеру
-		next.ServeHTTP(originalWriter, r)
-	})
 }

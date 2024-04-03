@@ -1,4 +1,4 @@
-package application
+package middleware
 
 import "net/http"
 
