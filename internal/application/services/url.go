@@ -8,11 +8,16 @@ import (
 
 type service struct {
 	storage storage.Storage
+	hasher  hash.Hasher
 }
 
-func NewService(storage storage.Storage) Service {
+func NewService(
+	storage storage.Storage,
+	hasher hash.Hasher,
+) Service {
 	return &service{
 		storage: storage,
+		hasher:  hasher,
 	}
 }
 
@@ -20,8 +25,8 @@ func (s *service) MakeShortURL(url string, length int) (*entity.URL, error) {
 	if shortURL := s.storage.GetByValue(url); shortURL != nil {
 		return shortURL, nil
 	}
-	h := hash.NewStringHasher().Hash(length)
-	shortURL, err := s.storage.Add(h, url)
+
+	shortURL, err := s.storage.Add(s.hasher.Hash(length), url)
 	if err != nil {
 		return nil, err
 	}
