@@ -4,20 +4,32 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog"
 	"github.com/vagafonov/shortener/internal/application/services"
 )
 
 type Application struct {
-	cnt *Container
+	cnt    *Container
+	logger zerolog.Logger
 }
 
 func NewApplication(cnt *Container) *Application {
-	return &Application{cnt: cnt}
+	// Инициализация логгера zerolog
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	// human-friendly и цветной output
+	logger = logger.Output(zerolog.ConsoleWriter{Out: os.Stderr}) //nolint:exhaustruct
+	// Уровень логирования
+	zerolog.SetGlobalLevel(cnt.cfg.LogLevel)
+
+	return &Application{cnt: cnt, logger: logger}
 }
 
 func (a *Application) Serve() error {
+	a.logger.Info().Msgf("server started and listen %s", a.cnt.cfg.ServerURL)
 	err := http.ListenAndServe(a.cnt.cfg.ServerURL, a.Routes()) //nolint:gosec
 	if err != nil {
 		return err
@@ -28,6 +40,8 @@ func (a *Application) Serve() error {
 
 func (a *Application) Routes() *chi.Mux {
 	r := chi.NewRouter()
+	// Middleware для логирования запросов
+	r.Use(a.WithLogging)
 	r.Get("/{short_url}", a.getShortURL)
 	r.Post("/", a.createShortURL)
 
@@ -68,4 +82,23 @@ func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
 	}
 	res.Header().Set("Location", shortURL.Full)
 	res.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+// WithLogging middleware для логирования.
+func (a *Application) WithLogging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		lw := loggingResponseWriter{
+			ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
+			responseData: &responseData{
+				status: 0,
+				size:   0,
+			},
+		}
+		l := a.logger.Info().Str("URI", r.RequestURI)
+		next.ServeHTTP(&lw, r)
+		l.Dur("duration", time.Since(start))
+		l.Int("status", lw.responseData.status)
+		l.Int("size", lw.responseData.size).Send()
+	})
 }
