@@ -6,9 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -19,10 +21,13 @@ import (
 	hash "github.com/vagafonov/shortener/pkg/hasher"
 )
 
+const fileStoragePath = "short-url-db-test.json"
+
 type FunctionalTestSuite struct {
 	suite.Suite
 	app    *Application
 	st     storage.Storage
+	fss    storage.Storage
 	cfg    *config.Config
 	hasher hash.Hasher
 }
@@ -33,9 +38,25 @@ func TestFunctionalTestSuite(t *testing.T) {
 
 func (s *FunctionalTestSuite) SetupSuite() {
 	s.st = storage.NewMemoryStorage()
-	s.cfg = config.NewConfig("test", "http://test:8080")
+	var err error
+	s.fss, err = storage.NewFileSystemStorage(fileStoragePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.cfg = config.NewConfig("test", "http://test:8080", fileStoragePath)
 	s.hasher = hash.NewMockHasher()
-	s.app = NewApplication(NewContainer(s.cfg, s.st, s.hasher))
+	s.app = NewApplication(
+		NewContainer(
+			s.cfg,
+			s.st,
+			s.fss,
+			s.hasher,
+		),
+	)
+}
+
+func (s *FunctionalTestSuite) TearDownSuite() {
+	os.Remove(fileStoragePath)
 }
 
 func (s *FunctionalTestSuite) TestCreateURL() {
@@ -62,7 +83,9 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 			}
 		})
 	}
-	s.Require().Len(s.st.GetAll(), 1, "exists doubles for same url")
+	URLs, err := s.st.GetAll()
+	s.Require().NoError(err)
+	s.Require().Len(URLs, 1, "exists doubles for same url")
 	// TODO move to tearDown
 	s.st.Truncate()
 }
@@ -101,7 +124,9 @@ func (s *FunctionalTestSuite) TestApiShorten() {
 			}
 		})
 	}
-	s.Require().Len(s.st.GetAll(), 1, "exists doubles for same url")
+	URLs, err := s.st.GetAll()
+	s.Require().NoError(err)
+	s.Require().Len(URLs, 1, "exists doubles for same url")
 	// TODO move to tearDown
 	s.st.Truncate()
 }

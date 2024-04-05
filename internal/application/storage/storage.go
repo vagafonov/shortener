@@ -9,9 +9,10 @@ import (
 var ErrAlreadyExists = errors.New("already exists")
 
 type Storage interface {
-	GetByHash(key string) *entity.URL
-	GetByValue(key string) *entity.URL
-	Add(key string, val string) (*entity.URL, error)
-	GetAll() []entity.URL
+	GetByHash(hash string) (*entity.URL, error)
+	GetByURL(url string) (*entity.URL, error)
+	Add(hash string, url string) (*entity.URL, error)
+	GetAll() ([]entity.URL, error)
 	Truncate()
+	Close() error
 }

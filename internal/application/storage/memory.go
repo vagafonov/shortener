@@ -14,46 +14,45 @@ func NewMemoryStorage() Storage {
 	}
 }
 
-func (s *memoryStorage) GetByHash(key string) *entity.URL {
+func (s *memoryStorage) GetByHash(key string) (*entity.URL, error) {
 	if v, ok := s.storage[key]; ok {
 		return &entity.URL{
 			Short: key,
 			Full:  v,
-		}
+		}, nil
 	}
 
-	return nil
+	return nil, nil //nolint:nilnil
 }
 
-func (s *memoryStorage) GetByValue(val string) *entity.URL {
+func (s *memoryStorage) GetByURL(val string) (*entity.URL, error) {
 	for k, v := range s.storage {
 		if val == v {
 			return &entity.URL{
 				Short: k,
 				Full:  v,
-			}
+			}, nil
 		}
 	}
 
-	return nil
+	return nil, nil //nolint:nilnil
 }
 
-func (s *memoryStorage) Add(key string, value string) (*entity.URL, error) {
-	if shortURL := s.GetByHash(key); shortURL != nil {
-		return nil, ErrAlreadyExists
+func (s *memoryStorage) Add(hash string, url string) (*entity.URL, error) {
+	for k, v := range s.storage {
+		if k == hash || v == url {
+			return nil, ErrAlreadyExists
+		}
 	}
-	if shortURL := s.GetByValue(value); shortURL != nil {
-		return nil, ErrAlreadyExists
-	}
-	s.storage[key] = value
+	s.storage[hash] = url
 
 	return &entity.URL{
-		Short: key,
-		Full:  value,
+		Short: hash,
+		Full:  url,
 	}, nil
 }
 
-func (s *memoryStorage) GetAll() []entity.URL {
+func (s *memoryStorage) GetAll() ([]entity.URL, error) {
 	res := make([]entity.URL, len(s.storage))
 	i := 0
 	for k, v := range s.storage {
@@ -64,9 +63,13 @@ func (s *memoryStorage) GetAll() []entity.URL {
 		i++
 	}
 
-	return res
+	return res, nil
 }
 
 func (s *memoryStorage) Truncate() {
 	clear(s.storage)
+}
+
+func (s *memoryStorage) Close() error {
+	return nil
 }

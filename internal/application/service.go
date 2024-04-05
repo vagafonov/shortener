@@ -1,4 +1,4 @@
-package services
+package application
 
 import (
 	"github.com/vagafonov/shortener/pkg/entity"
@@ -6,5 +6,6 @@ import (
 
 type Service interface {
 	MakeShortURL(url string, length int) (*entity.URL, error)
-	GetShortURL(url string) *entity.URL
+	GetShortURL(url string) (*entity.URL, error)
+	RestoreURLs(fileName string) (int, error)
 }
