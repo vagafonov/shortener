@@ -13,6 +13,7 @@ type options struct {
 	ServerURL       string `env:"SERVER_ADDRESS"`
 	ResultURL       string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 func main() {
@@ -29,7 +30,7 @@ func main() {
 		log.Fatal(err)
 	}
 	cnt := application.NewContainer(
-		config.NewConfig(opt.ServerURL, opt.ResultURL, opt.FileStoragePath),
+		config.NewConfig(opt.ServerURL, opt.ResultURL, opt.FileStoragePath, opt.DatabaseDSN),
 		storage.NewMemoryStorage(),
 		fss,
 		hasher.NewRandHasher(),

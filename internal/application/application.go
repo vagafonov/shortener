@@ -2,10 +2,12 @@ package application
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vagafonov/shortener/internal/middleware"
@@ -55,6 +57,7 @@ func (a *Application) Routes() *chi.Mux {
 	r.Get("/{short_url}", a.getShortURL)
 	r.Post("/", a.createShortURL)
 	r.Post("/api/", a.createShortURL)
+	r.Get("/ping", a.ping)
 
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/shorten", a.shorten)
@@ -164,4 +167,14 @@ func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
 	}
 	res.Header().Set("Location", shortURL.Full)
 	res.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func (a *Application) ping(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := a.cnt.db.PingContext(ctx); err != nil { //nolint:contextcheck
+		a.cnt.logger.Error().Err(err).Send()
+		res.WriteHeader(http.StatusInternalServerError)
+	}
+	res.WriteHeader(http.StatusOK)
 }

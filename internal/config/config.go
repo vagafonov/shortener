@@ -10,12 +10,14 @@ type Config struct {
 	ShortURLLength  int
 	LogLevel        zerolog.Level
 	FileStoragePath string
+	DatabaseDSN     string
 }
 
 func NewConfig(
 	serverURL string,
 	resultURL string,
 	fileStoragePath string,
+	databaseDSN string,
 ) *Config {
 	return &Config{
 		ServerURL:       serverURL,
@@ -23,5 +25,6 @@ func NewConfig(
 		ShortURLLength:  shortURLLength,
 		LogLevel:        zerolog.DebugLevel,
 		FileStoragePath: fileStoragePath,
+		DatabaseDSN:     databaseDSN,
 	}
 }

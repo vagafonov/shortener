@@ -43,7 +43,7 @@ func (s *FunctionalTestSuite) SetupSuite() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.cfg = config.NewConfig("test", "http://test:8080", fileStoragePath)
+	s.cfg = config.NewConfig("test", "http://test:8080", fileStoragePath, "")
 	s.hasher = hash.NewMockHasher()
 	s.app = NewApplication(
 		NewContainer(

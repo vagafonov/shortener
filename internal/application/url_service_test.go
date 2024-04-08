@@ -29,7 +29,7 @@ func (s *URLSuite) SetupSuite() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfg := config.NewConfig("test", "http://test:8080", fileName)
+	cfg := config.NewConfig("test", "http://test:8080", fileName, "")
 	hasher := hash.NewMockHasher()
 	s.cnt = NewContainer(
 		cfg,

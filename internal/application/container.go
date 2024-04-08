@@ -1,8 +1,10 @@
 package application
 
 import (
+	"database/sql"
 	"os"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog"
 	"github.com/vagafonov/shortener/internal/application/storage"
 	"github.com/vagafonov/shortener/internal/config"
@@ -15,6 +17,7 @@ type Container struct {
 	bcpStrg storage.Storage
 	hasher  hash.Hasher
 	logger  zerolog.Logger
+	db      *sql.DB
 }
 
 func NewContainer(
@@ -29,6 +32,11 @@ func NewContainer(
 	logger = logger.Output(zerolog.ConsoleWriter{Out: os.Stderr}) //nolint:exhaustruct
 	// Уровень логирования
 	zerolog.SetGlobalLevel(cfg.LogLevel)
+	logger.Info().Msgf("DSN: %v", cfg.DatabaseDSN)
+	db, err := sql.Open("pgx", cfg.DatabaseDSN)
+	if err != nil {
+		panic(err)
+	}
 
 	return &Container{
 		cfg:     cfg,
@@ -36,6 +44,7 @@ func NewContainer(
 		bcpStrg: bcpStrg,
 		hasher:  hasher,
 		logger:  logger,
+		db:      db,
 	}
 }
 
