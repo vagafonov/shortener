@@ -9,10 +9,10 @@ import (
 )
 
 type validator struct {
-	logger zerolog.Logger
+	logger *zerolog.Logger
 }
 
-func NewValidator(l zerolog.Logger) *validator {
+func NewValidator(l *zerolog.Logger) *validator {
 	return &validator{logger: l}
 }
 

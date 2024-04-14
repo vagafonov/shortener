@@ -12,7 +12,7 @@ type ShortenResponse struct {
 
 //nolint:musttag
 type URL struct {
-	UUID  uuid.UUID
-	Short string
-	Full  string
+	UUID     uuid.UUID
+	Short    string
+	Original string
 }

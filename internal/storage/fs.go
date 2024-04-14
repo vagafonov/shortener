@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/vagafonov/shortener/internal/contract"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
@@ -15,7 +16,7 @@ type fileSystemStorage struct {
 	scanner *bufio.Scanner
 }
 
-func NewFileSystemStorage(fileName string) (Storage, error) {
+func NewFileSystemStorage(fileName string) (contract.Storage, error) {
 	fss := fileSystemStorage{}
 	var err error
 	fss.file, err = os.OpenFile(fileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666) //nolint:gofumpt, gomnd
@@ -50,7 +51,7 @@ func (fss *fileSystemStorage) GetByURL(url string) (*entity.URL, error) {
 		if err != nil {
 			return nil, err
 		}
-		if e.Full == url {
+		if e.Original == url {
 			return e, nil
 		}
 	}
@@ -60,9 +61,9 @@ func (fss *fileSystemStorage) GetByURL(url string) (*entity.URL, error) {
 
 func (fss *fileSystemStorage) Add(key string, value string) (*entity.URL, error) {
 	url := &entity.URL{
-		UUID:  uuid.New(),
-		Short: key,
-		Full:  value,
+		UUID:     uuid.New(),
+		Short:    key,
+		Original: value,
 	}
 
 	return url, fss.encoder.Encode(url)

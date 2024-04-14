@@ -14,22 +14,23 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
-	"github.com/vagafonov/shortener/internal/application/storage"
 	"github.com/vagafonov/shortener/internal/config"
+	"github.com/vagafonov/shortener/internal/container"
+	"github.com/vagafonov/shortener/internal/logger"
+	"github.com/vagafonov/shortener/internal/service"
+	"github.com/vagafonov/shortener/internal/storage"
 	"github.com/vagafonov/shortener/pkg/entity"
-	hash "github.com/vagafonov/shortener/pkg/hasher"
 )
 
 const fileStoragePath = "short-url-db-test.json"
 
 type FunctionalTestSuite struct {
 	suite.Suite
-	app    *Application
-	st     storage.Storage
-	fss    storage.Storage
-	cfg    *config.Config
-	hasher hash.Hasher
+	cnt        *container.Container
+	app        *Application
+	serviceURL *service.URLServiceMock
 }
 
 func TestFunctionalTestSuite(t *testing.T) {
@@ -37,21 +38,28 @@ func TestFunctionalTestSuite(t *testing.T) {
 }
 
 func (s *FunctionalTestSuite) SetupSuite() {
-	s.st = storage.NewMemoryStorage()
-	var err error
-	s.fss, err = storage.NewFileSystemStorage(fileStoragePath)
+	fss, err := storage.NewFileSystemStorage(fileStoragePath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.cfg = config.NewConfig("test", "http://test:8080", fileStoragePath, "")
-	s.hasher = hash.NewMockHasher()
+	cfg := config.NewConfig("test", "http://test:8080", fileStoragePath, "test")
+	lr := logger.CreateLogger(cfg.LogLevel)
+	s.cnt = container.NewContainer(
+		cfg,
+		nil,
+		fss,
+		nil,
+		lr,
+		nil,
+	)
+	serv, err := service.ServiceURLFactory(s.cnt, "mock")
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.serviceURL, _ = serv.(*service.URLServiceMock)
+	s.cnt.SetServiceURL(s.serviceURL)
 	s.app = NewApplication(
-		NewContainer(
-			s.cfg,
-			s.st,
-			s.fss,
-			s.hasher,
-		),
+		s.cnt,
 	)
 }
 
@@ -64,14 +72,31 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 		method string
 		body   string
 		code   int
+		init   func(s *FunctionalTestSuite)
 	}{
-		{method: http.MethodPost, body: "https://practicum.yandex.ru", code: http.StatusCreated},
-		{method: http.MethodPost, body: "https://practicum.yandex.ru", code: http.StatusCreated},
-		{method: http.MethodPost, body: "", code: http.StatusBadRequest},
+		{
+			method: http.MethodPost,
+			body:   "https://practicum.yandex.ru",
+			code:   http.StatusCreated,
+			init: func(s *FunctionalTestSuite) {
+				s.serviceURL.SetMakeShortURLResult(&entity.URL{
+					UUID:     uuid.UUID{},
+					Short:    "********",
+					Original: "2",
+				}, nil)
+			},
+		},
+		{
+			method: http.MethodPost,
+			body:   "",
+			code:   http.StatusBadRequest,
+			init:   func(s *FunctionalTestSuite) {},
+		},
 	}
 
 	for _, test := range tests {
 		s.Run(test.method, func() {
+			test.init(s)
 			r := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
 			w := httptest.NewRecorder()
 			s.app.createShortURL(w, r)
@@ -79,15 +104,10 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 			if test.code == http.StatusCreated {
 				u, err := url.Parse(w.Body.String())
 				s.Require().NoError(err)
-				s.Require().Len(strings.Trim(u.Path, "/"), s.cfg.ShortURLLength)
+				s.Require().Len(strings.Trim(u.Path, "/"), s.cnt.GetConfig().ShortURLLength)
 			}
 		})
 	}
-	URLs, err := s.st.GetAll()
-	s.Require().NoError(err)
-	s.Require().Len(URLs, 1, "exists doubles for same url")
-	// TODO move to tearDown
-	s.st.Truncate()
 }
 
 func (s *FunctionalTestSuite) TestApiShorten() {
@@ -95,14 +115,32 @@ func (s *FunctionalTestSuite) TestApiShorten() {
 		method string
 		body   string
 		code   int
+		init   func(s *FunctionalTestSuite)
 	}{
-		{method: http.MethodPost, body: `{"url":"https://practicum.yandex.ru"}`, code: http.StatusCreated},
-		{method: http.MethodPost, body: `{"url":"https://practicum.yandex.ru"}`, code: http.StatusCreated},
-		{method: http.MethodPost, body: "{,}", code: http.StatusBadRequest},
+		{
+			method: http.MethodPost,
+			body:   `{"url":"https://practicum.yandex.ru"}`,
+			code:   http.StatusCreated,
+			init: func(s *FunctionalTestSuite) {
+				s.serviceURL.SetMakeShortURLResult(&entity.URL{
+					UUID:     uuid.UUID{},
+					Short:    "********",
+					Original: "2",
+				}, nil)
+			},
+		},
+		{
+			method: http.MethodPost,
+			body:   "{,}",
+			code:   http.StatusBadRequest,
+			init: func(s *FunctionalTestSuite) {
+			},
+		},
 	}
 
 	for _, test := range tests {
 		s.Run(test.method, func() {
+			test.init(s)
 			r := httptest.NewRequest(test.method, "/api/shorten", strings.NewReader(test.body))
 			w := httptest.NewRecorder()
 			s.app.shorten(w, r)
@@ -117,18 +155,13 @@ func (s *FunctionalTestSuite) TestApiShorten() {
 				if test.code == http.StatusCreated {
 					u, err := url.Parse(resp.Result)
 					s.Require().NoError(err)
-					s.Require().Len(strings.Trim(u.Path, "/"), s.cfg.ShortURLLength)
+					s.Require().Len(strings.Trim(u.Path, "/"), s.cnt.GetConfig().ShortURLLength)
 					s.Require().Equal("application/json", w.Header().Get("content-type"))
 					s.Require().Empty(w.Header().Get("Content-Encoding"))
 				}
 			}
 		})
 	}
-	URLs, err := s.st.GetAll()
-	s.Require().NoError(err)
-	s.Require().Len(URLs, 1, "exists doubles for same url")
-	// TODO move to tearDown
-	s.st.Truncate()
 }
 
 func (s *FunctionalTestSuite) TestGetURL() {
@@ -138,18 +171,43 @@ func (s *FunctionalTestSuite) TestGetURL() {
 		URL      string
 		code     int
 		location string
+		init     func(s *FunctionalTestSuite)
 	}{
-		{method: http.MethodGet, URL: "/test", code: http.StatusTemporaryRedirect, location: "https://practicum.yandex.ru"},
-		{method: http.MethodGet, URL: "/", code: http.StatusMethodNotAllowed, location: ""},
-		{method: http.MethodGet, URL: "/undefined-short-url", code: http.StatusNotFound, location: ""},
+		{
+			method:   http.MethodGet,
+			URL:      "/test",
+			code:     http.StatusTemporaryRedirect,
+			location: "https://practicum.yandex.ru",
+			init: func(s *FunctionalTestSuite) {
+				s.serviceURL.SetGetShortURLResult(&entity.URL{
+					UUID:     uuid.UUID{},
+					Short:    "test",
+					Original: "https://practicum.yandex.ru",
+				}, nil)
+			},
+		},
+		{
+			method:   http.MethodGet,
+			URL:      "/",
+			code:     http.StatusMethodNotAllowed,
+			location: "",
+			init:     func(s *FunctionalTestSuite) {},
+		},
+		{
+			method:   http.MethodGet,
+			URL:      "/undefined-short-url",
+			code:     http.StatusNotFound,
+			location: "",
+			init: func(s *FunctionalTestSuite) {
+				s.serviceURL.SetGetShortURLResult(nil, nil)
+			},
+		},
 	}
 	ts := httptest.NewServer(s.app.Routes())
 	defer ts.Close()
-	// TODO use dummy page
-	_, err := s.st.Add("test", "https://practicum.yandex.ru")
-	s.Require().NoError(err)
 	for _, test := range tests {
 		s.Run(test.method, func() {
+			test.init(s)
 			r, err := http.NewRequestWithContext(ctx, test.method, ts.URL+test.URL, nil)
 			s.Require().NoError(err)
 
@@ -164,8 +222,6 @@ func (s *FunctionalTestSuite) TestGetURL() {
 			s.Require().Equal(test.location, resp.Header.Get("Location"))
 		})
 	}
-	// TODO move to tearDown
-	s.st.Truncate()
 }
 
 func (s *FunctionalTestSuite) TestCompress() {
@@ -173,6 +229,11 @@ func (s *FunctionalTestSuite) TestCompress() {
 	defer srv.Close()
 
 	s.Run("send encoded request", func() {
+		s.serviceURL.SetMakeShortURLResult(&entity.URL{
+			UUID:     uuid.UUID{},
+			Short:    "********",
+			Original: "ya.ru",
+		}, nil)
 		requestBody := `{"url": "ya.ru"}`
 		buf := bytes.NewBuffer(nil)
 		zb := gzip.NewWriter(buf)
@@ -200,7 +261,5 @@ func (s *FunctionalTestSuite) TestCompress() {
 		s.Require().Equal(`gzip`, resp.Header.Get("Content-Encoding"))
 		s.Require().Equal(`application/json`, resp.Header.Get("Content-Type"))
 		s.Require().JSONEq(`{"result":"http://test:8080/********"}`, string(b))
-		// TODO move to tearDown
-		s.st.Truncate()
 	})
 }

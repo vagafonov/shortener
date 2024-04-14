@@ -37,9 +37,9 @@ func (s *FileSystemStorageTestSuite) TestAdd() {
 	s.Require().NoError(err)
 
 	s.Equal(entity.URL{
-		UUID:  resultURL.UUID,
-		Short: "1",
-		Full:  "2",
+		UUID:     resultURL.UUID,
+		Short:    "1",
+		Original: "2",
 	}, *urlActual)
 	os.Remove(fileName)
 }
@@ -54,21 +54,21 @@ func (s *FileSystemStorageTestSuite) TestGetAll() {
 	s.Require().NoError(err)
 	_, err = addTestURLToFile(uuid2, "short2", "full2")
 	s.Require().NoError(err)
-	resultUrls, err := fss.GetAll()
+	resultURLs, err := fss.GetAll()
 	s.Require().NoError(err)
 	exp := []entity.URL{
 		{
-			UUID:  uuid1,
-			Short: "short1",
-			Full:  "full1",
+			UUID:     uuid1,
+			Short:    "short1",
+			Original: "full1",
 		},
 		{
-			UUID:  uuid2,
-			Short: "short2",
-			Full:  "full2",
+			UUID:     uuid2,
+			Short:    "short2",
+			Original: "full2",
 		},
 	}
-	s.Require().Equal(exp, resultUrls)
+	s.Require().Equal(exp, resultURLs)
 	os.Remove(fileName)
 }
 
@@ -88,14 +88,14 @@ func (s *FileSystemStorageTestSuite) TestGetByHash() {
 	s.Require().NoError(err)
 
 	s.Require().Equal(&entity.URL{
-		UUID:  u2.UUID,
-		Short: "short2",
-		Full:  "full",
+		UUID:     u2.UUID,
+		Short:    "short2",
+		Original: "full",
 	}, url)
 	os.Remove(fileName)
 }
 
-func (s *FileSystemStorageTestSuite) TestGetByUrl() {
+func (s *FileSystemStorageTestSuite) TestGetByURL() {
 	_, err := addTestURLToFile(uuid.New(), "short", "full1")
 	s.Require().NoError(err)
 	u2, err := addTestURLToFile(uuid.New(), "short", "full2")
@@ -111,9 +111,9 @@ func (s *FileSystemStorageTestSuite) TestGetByUrl() {
 	s.Require().NoError(err)
 
 	s.Require().Equal(&entity.URL{
-		UUID:  u2.UUID,
-		Short: "short",
-		Full:  "full2",
+		UUID:     u2.UUID,
+		Short:    "short",
+		Original: "full2",
 	}, url)
 	os.Remove(fileName)
 }
@@ -125,9 +125,9 @@ func addTestURLToFile(id uuid.UUID, shortURL string, fullURL string) (*entity.UR
 	}
 	defer f.Close()
 	urlEntity := &entity.URL{
-		UUID:  id,
-		Short: shortURL,
-		Full:  fullURL,
+		UUID:     id,
+		Short:    shortURL,
+		Original: fullURL,
 	}
 	encoder := json.NewEncoder(f)
 

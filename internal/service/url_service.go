@@ -1,40 +1,38 @@
-package application
+package service
 
 import (
-	"bufio"
-	"encoding/json"
-	"os"
+	"fmt"
 
 	"github.com/rs/zerolog"
-	"github.com/vagafonov/shortener/internal/application/storage"
+	"github.com/vagafonov/shortener/internal/contract"
 	"github.com/vagafonov/shortener/pkg/entity"
 	hash "github.com/vagafonov/shortener/pkg/hasher"
 )
 
 // TODO rename.
 type urlService struct {
-	logger        zerolog.Logger
-	storage       storage.Storage
-	backupStorage storage.Storage
+	logger        *zerolog.Logger
+	mainStorage   contract.Storage
+	backupStorage contract.Storage
 	hasher        hash.Hasher
 }
 
-func NewService(
-	logger zerolog.Logger,
-	storage storage.Storage,
-	backupStorage storage.Storage,
+func NewURLService(
+	logger *zerolog.Logger,
+	mainStorage contract.Storage,
+	backupStorage contract.Storage,
 	hasher hash.Hasher,
-) Service {
+) contract.Service {
 	return &urlService{
 		logger:        logger,
-		storage:       storage,
+		mainStorage:   mainStorage,
 		backupStorage: backupStorage,
 		hasher:        hasher,
 	}
 }
 
 func (s *urlService) MakeShortURL(url string, length int) (*entity.URL, error) {
-	shortURL, err := s.storage.GetByURL(url)
+	shortURL, err := s.mainStorage.GetByURL(url)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +40,7 @@ func (s *urlService) MakeShortURL(url string, length int) (*entity.URL, error) {
 		return shortURL, nil
 	}
 	hashShortURL := s.hasher.Hash(length)
-	shortURL, err = s.storage.Add(hashShortURL, url)
+	shortURL, err = s.mainStorage.Add(hashShortURL, url)
 	if err != nil {
 		return nil, err
 	}
@@ -57,27 +55,23 @@ func (s *urlService) MakeShortURL(url string, length int) (*entity.URL, error) {
 func (s *urlService) GetShortURL(url string) (*entity.URL, error) {
 	s.logger.Info().Str("url", url).Msg("GetShortURL")
 
-	return s.storage.GetByHash(url)
+	return s.mainStorage.GetByHash(url)
 }
 
 func (s *urlService) RestoreURLs(fileName string) (int, error) {
-	f, err := os.OpenFile(fileName, os.O_RDONLY, 0666) //nolint:gofumpt, gomnd
-	scanner := bufio.NewScanner(f)
+	// TODO need pagination
+
+	URLs, err := s.backupStorage.GetAll()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to get all URLs: %w", err)
 	}
 
-	var e entity.URL
-	var count int
-	for scanner.Scan() {
-		if err := json.Unmarshal(scanner.Bytes(), &e); err != nil {
-			return 0, err
+	for _, v := range URLs {
+		// TODO handle id
+		if _, err = s.mainStorage.Add(v.Short, v.Original); err != nil {
+			return 0, fmt.Errorf("failed to add URL: %w", err)
 		}
-		if _, err = s.storage.Add(e.Short, e.Full); err != nil {
-			return 0, err
-		}
-		count++
 	}
 
-	return count, nil
+	return len(URLs), err
 }

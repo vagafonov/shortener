@@ -1,4 +1,4 @@
-package application
+package contract
 
 import (
 	"github.com/vagafonov/shortener/pkg/entity"

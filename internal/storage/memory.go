@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/vagafonov/shortener/internal/contract"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
@@ -8,7 +9,7 @@ type memoryStorage struct {
 	storage map[string]string
 }
 
-func NewMemoryStorage() Storage {
+func NewMemoryStorage() contract.Storage {
 	return &memoryStorage{
 		storage: make(map[string]string),
 	}
@@ -17,8 +18,8 @@ func NewMemoryStorage() Storage {
 func (s *memoryStorage) GetByHash(key string) (*entity.URL, error) {
 	if v, ok := s.storage[key]; ok {
 		return &entity.URL{
-			Short: key,
-			Full:  v,
+			Short:    key,
+			Original: v,
 		}, nil
 	}
 
@@ -29,8 +30,8 @@ func (s *memoryStorage) GetByURL(val string) (*entity.URL, error) {
 	for k, v := range s.storage {
 		if val == v {
 			return &entity.URL{
-				Short: k,
-				Full:  v,
+				Short:    k,
+				Original: v,
 			}, nil
 		}
 	}
@@ -41,14 +42,14 @@ func (s *memoryStorage) GetByURL(val string) (*entity.URL, error) {
 func (s *memoryStorage) Add(hash string, url string) (*entity.URL, error) {
 	for k, v := range s.storage {
 		if k == hash || v == url {
-			return nil, ErrAlreadyExists
+			return nil, contract.ErrAlreadyExists
 		}
 	}
 	s.storage[hash] = url
 
 	return &entity.URL{
-		Short: hash,
-		Full:  url,
+		Short:    hash,
+		Original: url,
 	}, nil
 }
 
@@ -57,8 +58,8 @@ func (s *memoryStorage) GetAll() ([]entity.URL, error) {
 	i := 0
 	for k, v := range s.storage {
 		res[i] = entity.URL{
-			Short: k,
-			Full:  v,
+			Short:    k,
+			Original: v,
 		}
 		i++
 	}
