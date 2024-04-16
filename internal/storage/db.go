@@ -104,6 +104,22 @@ func (s *dbStorage) GetAll() ([]entity.URL, error) {
 	return urls, nil
 }
 
+func (s *dbStorage) AddBatch(b []entity.URL) (int, error) {
+	tx, err := s.connection.Begin()
+	if err != nil {
+		return 0, err
+	}
+	for _, v := range b {
+		q := `INSERT INTO url (id, short, original) VALUES($1, $2, $3)`
+		_, err := tx.ExecContext(context.Background(), q, uuid.New(), v.Short, v.Original)
+		if err != nil {
+			return 0, tx.Rollback()
+		}
+	}
+	// завершаем транзакцию
+	return len(b), tx.Commit()
+}
+
 func (s *dbStorage) Truncate() {
 }
 

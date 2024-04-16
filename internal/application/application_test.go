@@ -19,6 +19,7 @@ import (
 	"github.com/vagafonov/shortener/internal/config"
 	"github.com/vagafonov/shortener/internal/container"
 	"github.com/vagafonov/shortener/internal/logger"
+	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/internal/service"
 	"github.com/vagafonov/shortener/internal/storage"
 	"github.com/vagafonov/shortener/pkg/entity"
@@ -148,7 +149,7 @@ func (s *FunctionalTestSuite) TestApiShorten() {
 
 			if w.Body.Bytes() != nil {
 				decoder := json.NewDecoder(w.Body)
-				var resp entity.ShortenResponse
+				var resp response.ShortenResponse
 				err := decoder.Decode(&resp)
 				s.Require().NoError(err)
 
@@ -261,5 +262,129 @@ func (s *FunctionalTestSuite) TestCompress() {
 		s.Require().Equal(`gzip`, resp.Header.Get("Content-Encoding"))
 		s.Require().Equal(`application/json`, resp.Header.Get("Content-Type"))
 		s.Require().JSONEq(`{"result":"http://test:8080/********"}`, string(b))
+	})
+}
+
+func (s *FunctionalTestSuite) TestShortenBatch() { //nolint:funlen
+	srv := httptest.NewServer(s.app.Routes())
+	defer srv.Close()
+
+	s.Run("shorten batch", func() {
+		s.serviceURL.SetMakeShortURLBatchResult([]response.ShortenBatchResponse{
+			{
+				CorrelationID: "1",
+				ShortURL:      "a",
+			},
+			{
+				CorrelationID: "2",
+				ShortURL:      "b",
+			},
+		}, nil)
+		requestBody := `[
+			{
+				"correlation_id": "1",
+				"original_url": "aaa"
+			},
+			{
+				"correlation_id": "2",
+				"original_url": "bbb"
+			}
+		]`
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		s.Require().NoError(err)
+		err = zb.Close()
+		s.Require().NoError(err)
+		r := httptest.NewRequest(http.MethodPost, srv.URL+"/api/shorten/batch", buf)
+
+		r.RequestURI = ""
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Accept-Encoding", "gzip")
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		s.Require().Equal(http.StatusCreated, resp.StatusCode)
+
+		defer resp.Body.Close()
+		zr, err := gzip.NewReader(resp.Body)
+		s.Require().NoError(err)
+
+		b, err := io.ReadAll(zr)
+		s.Require().NoError(err)
+
+		s.Require().Equal(`gzip`, resp.Header.Get("Content-Encoding"))
+		s.Require().Equal(`application/json`, resp.Header.Get("Content-Type"))
+		s.Require().JSONEq(`[{"correlation_id":"1","short_url":"a"},{"correlation_id":"2","short_url":"b"}]`, string(b))
+	})
+
+	s.Run("shorten batch with correlation_id empty", func() {
+		requestBody := `[
+			{
+				"correlation_id": "",
+				"original_url": "aaa"
+			}
+		]`
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		s.Require().NoError(err)
+		err = zb.Close()
+		s.Require().NoError(err)
+		r := httptest.NewRequest(http.MethodPost, srv.URL+"/api/shorten/batch", buf)
+
+		r.RequestURI = ""
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Accept-Encoding", "gzip")
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+	})
+
+	s.Run("shorten batch with original_url empty", func() {
+		requestBody := `[
+			{
+				"correlation_id": "1",
+				"original_url": ""
+			}
+		]`
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		s.Require().NoError(err)
+		err = zb.Close()
+		s.Require().NoError(err)
+		r := httptest.NewRequest(http.MethodPost, srv.URL+"/api/shorten/batch", buf)
+
+		r.RequestURI = ""
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Accept-Encoding", "gzip")
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+	})
+
+	s.Run("shorten empty batch", func() {
+		requestBody := `[]`
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		s.Require().NoError(err)
+		err = zb.Close()
+		s.Require().NoError(err)
+		r := httptest.NewRequest(http.MethodPost, srv.URL+"/api/shorten/batch", buf)
+
+		r.RequestURI = ""
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Accept-Encoding", "gzip")
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
 	})
 }

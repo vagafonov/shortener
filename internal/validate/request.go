@@ -3,10 +3,13 @@ package validate
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 
 	"github.com/rs/zerolog"
-	"github.com/vagafonov/shortener/pkg/entity"
+	"github.com/vagafonov/shortener/internal/request"
 )
+
+var ErrValidateEmpty = errors.New("empty")
 
 type validator struct {
 	logger *zerolog.Logger
@@ -16,8 +19,8 @@ func NewValidator(l *zerolog.Logger) *validator {
 	return &validator{logger: l}
 }
 
-func (v *validator) ShortenRequest(buf bytes.Buffer) *entity.ShortenRequest {
-	var shortenReq entity.ShortenRequest
+func (v *validator) ShortenRequest(buf bytes.Buffer) *request.ShortenRequest {
+	var shortenReq request.ShortenRequest
 	if err := json.Unmarshal(buf.Bytes(), &shortenReq); err != nil {
 		v.logger.Warn().Str("error", err.Error()).Str("request", buf.String()).Msg("cannot unmarshal request")
 
@@ -25,4 +28,27 @@ func (v *validator) ShortenRequest(buf bytes.Buffer) *entity.ShortenRequest {
 	}
 
 	return &shortenReq
+}
+
+func (v *validator) ShortenBatchRequest(buf bytes.Buffer) ([]request.ShortenBatchRequest, error) {
+	var req []request.ShortenBatchRequest
+	if err := json.Unmarshal(buf.Bytes(), &req); err != nil {
+		v.logger.Warn().Str("error", err.Error()).Str("request", buf.String()).Msg("cannot unmarshal shorten batch request")
+
+		return nil, err
+	}
+	if len(req) == 0 {
+		return nil, ErrValidateEmpty
+	}
+	for _, v := range req {
+		if v.CorrelationID == "" {
+			return nil, ErrValidateEmpty
+		}
+
+		if v.OriginalURL == "" {
+			return nil, ErrValidateEmpty
+		}
+	}
+
+	return req, nil
 }

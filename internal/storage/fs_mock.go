@@ -11,6 +11,9 @@ type FileSystemStorageMock struct {
 
 	addResponseEntity *entity.URL
 	addResponseError  error
+
+	addBatchResponseTotalCreated int
+	addBatchResponseError        error
 }
 
 func NewFileSystemStorageMock() contract.Storage {
@@ -41,6 +44,15 @@ func (s *FileSystemStorageMock) GetAll() ([]entity.URL, error) {
 func (s *FileSystemStorageMock) SetGetAllResponse(e []entity.URL, err error) {
 	s.getAllResponseEntity = e
 	s.getAllResponseError = err
+}
+
+func (s *FileSystemStorageMock) AddBatch(b []entity.URL) (int, error) {
+	return s.addBatchResponseTotalCreated, s.addBatchResponseError
+}
+
+func (s *FileSystemStorageMock) SetAddBatchResponse(totalCreated int, err error) {
+	s.addBatchResponseTotalCreated = totalCreated
+	s.addBatchResponseError = err
 }
 
 func (s *FileSystemStorageMock) Truncate() {

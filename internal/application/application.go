@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,8 +13,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/vagafonov/shortener/internal/container"
 	"github.com/vagafonov/shortener/internal/middleware"
+	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/internal/validate"
-	"github.com/vagafonov/shortener/pkg/entity"
 )
 
 type Application struct {
@@ -57,6 +58,7 @@ func (a *Application) Routes() *chi.Mux {
 
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/shorten", a.shorten)
+		r.Post("/shorten/batch", a.shortenBatch)
 	})
 
 	return r
@@ -113,7 +115,7 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	jsonRes, err := json.Marshal(entity.ShortenResponse{
+	jsonRes, err := json.Marshal(response.ShortenResponse{
 		Result: fmt.Sprintf("%s/%s", a.cnt.GetConfig().ResultURL, shortURL.Short),
 	})
 	if err != nil {
@@ -158,4 +160,57 @@ func (a *Application) ping(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusInternalServerError)
 	}
 	res.WriteHeader(http.StatusOK)
+}
+
+func (a *Application) shortenBatch(res http.ResponseWriter, req *http.Request) {
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(req.Body)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot read body")
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	validatedRequest, err := validate.NewValidator(a.cnt.GetLogger()).ShortenBatchRequest(buf)
+	if err != nil {
+		if errors.Is(err, validate.ErrValidateEmpty) {
+			res.WriteHeader(http.StatusBadRequest)
+
+			return
+		}
+
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	shortenBatchResponse, err := a.cnt.GetServiceURL().MakeShortURLBatch(
+		validatedRequest,
+		a.cnt.GetConfig().ShortURLLength,
+		a.cnt.GetConfig().ResultURL,
+	)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot make shorten batch")
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	jsonRes, err := json.Marshal(shortenBatchResponse)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot encode response to JSON")
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	res.Header().Set("content-type", "application/json")
+	res.WriteHeader(http.StatusCreated)
+	_, err = res.Write(jsonRes)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot encode response to JSON")
+
+		return
+	}
 }

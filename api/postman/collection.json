@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "93e04a10-1bd0-436a-a648-5733768b3173",
+		"_postman_id": "629e09bc-a797-45d9-b2bc-72cfd85b7952",
 		"name": "Shortener",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "12131730"
@@ -63,6 +63,34 @@
 			"response": []
 		},
 		{
+			"name": "Api shorten batch",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "[\n    {\n        \"correlation_id\": \"<строковый идентификатор>\",\n        \"original_url\": \"<URL для сокращения>\"\n    },\n        {\n        \"correlation_id\": \"<строковый идентификатор>\",\n        \"original_url\": \"<URL для сокращения>\"\n    },\n        {\n        \"correlation_id\": \"<строковый идентификатор>\",\n        \"original_url\": \"<URL для сокращения>\"\n    },\n] ",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "127.0.0.1:8080/api/shorten/batch",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"shorten",
+						"batch"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "Get short url",
 			"protocolProfileBehavior": {
 				"disabledSystemHeaders": {}
@@ -77,6 +105,26 @@
 					],
 					"path": [
 						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Ping",
+			"protocolProfileBehavior": {
+				"disabledSystemHeaders": {}
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/ping",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"ping"
 					]
 				}
 			},

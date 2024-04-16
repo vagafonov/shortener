@@ -12,8 +12,11 @@ import (
 	"github.com/vagafonov/shortener/internal/container"
 	"github.com/vagafonov/shortener/internal/contract"
 	"github.com/vagafonov/shortener/internal/logger"
+	"github.com/vagafonov/shortener/internal/request"
+	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/internal/storage"
 	"github.com/vagafonov/shortener/pkg/entity"
+	hasher "github.com/vagafonov/shortener/pkg/hasher"
 )
 
 const fileName = "test-file-db"
@@ -47,7 +50,7 @@ func (s *ServiceURLMemorySuite) SetupSuite() {
 		cfg,
 		nil,
 		fss,
-		nil,
+		hasher.NewMockHasher(),
 		lr,
 		nil,
 	)
@@ -151,5 +154,24 @@ func (s *ServiceURLMemorySuite) TestRestoreURLs() {
 		s.mainStorage.SetAddResponse(nil, ErrEmpty)
 		_, err := s.service.RestoreURLs(fileName)
 		s.Require().Error(err)
+	})
+
+	s.Run("add batch", func() {
+		req := []request.ShortenBatchRequest{
+			{
+				CorrelationID: "1",
+				OriginalURL:   "aaa",
+			},
+		}
+		expResp := []response.ShortenBatchResponse{
+			{
+				CorrelationID: "1",
+				ShortURL:      "url/*****",
+			},
+		}
+		s.mainStorage.SetAddBatchResponse(1, nil)
+		resp, err := s.service.MakeShortURLBatch(req, 5, "url")
+		s.Require().Equal(expResp, resp)
+		s.Require().NoError(err)
 	})
 }

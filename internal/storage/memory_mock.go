@@ -17,6 +17,9 @@ type MemoryStorageMock struct {
 
 	getByHashResponseEntity *entity.URL
 	getByHashResponseError  error
+
+	getAddBatchResponseTotalCreated int
+	getAddBatchResponseError        error
 }
 
 func NewMemoryStorageMock() contract.Storage {
@@ -52,6 +55,15 @@ func (s *MemoryStorageMock) SetAddResponse(e *entity.URL, err error) {
 
 func (s *MemoryStorageMock) GetAll() ([]entity.URL, error) {
 	return s.getAllResponseEntity, s.getAllResponseError
+}
+
+func (s *MemoryStorageMock) AddBatch(b []entity.URL) (int, error) {
+	return s.getAddBatchResponseTotalCreated, s.getAddBatchResponseError
+}
+
+func (s *MemoryStorageMock) SetAddBatchResponse(totalCreated int, err error) {
+	s.getAddBatchResponseTotalCreated = totalCreated
+	s.getAddBatchResponseError = err
 }
 
 func (s *MemoryStorageMock) Truncate() {

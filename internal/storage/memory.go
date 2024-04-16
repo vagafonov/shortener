@@ -67,6 +67,14 @@ func (s *memoryStorage) GetAll() ([]entity.URL, error) {
 	return res, nil
 }
 
+func (s *memoryStorage) AddBatch(b []entity.URL) (int, error) {
+	for _, v := range b {
+		s.storage[v.Short] = v.Original
+	}
+
+	return len(b), nil
+}
+
 func (s *memoryStorage) Truncate() {
 	clear(s.storage)
 }

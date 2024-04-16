@@ -5,6 +5,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/vagafonov/shortener/internal/contract"
+	"github.com/vagafonov/shortener/internal/request"
+	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/pkg/entity"
 	hash "github.com/vagafonov/shortener/pkg/hasher"
 )
@@ -74,4 +76,39 @@ func (s *urlService) RestoreURLs(fileName string) (int, error) {
 	}
 
 	return len(URLs), err
+}
+
+func (s *urlService) MakeShortURLBatch(
+	req []request.ShortenBatchRequest,
+	length int,
+	baseURL string,
+) ([]response.ShortenBatchResponse, error) {
+	URLs := make([]entity.URL, len(req))
+	for k, v := range req {
+		URLs[k] = entity.URL{
+			Short:    s.hasher.Hash(length),
+			Original: v.OriginalURL,
+		}
+	}
+
+	totalCreated, err := s.mainStorage.AddBatch(URLs)
+	if err != nil {
+		return nil, fmt.Errorf("cannot add batch to main storage: %w", err)
+	}
+
+	resp := make([]response.ShortenBatchResponse, totalCreated)
+
+	for k, v := range URLs {
+		resp[k] = response.ShortenBatchResponse{
+			CorrelationID: req[k].CorrelationID,
+			ShortURL:      fmt.Sprintf("%s/%s", baseURL, v.Short),
+		}
+	}
+
+	_, err = s.backupStorage.AddBatch(URLs)
+	if err != nil {
+		return nil, fmt.Errorf("cannot add batch to backup storage: %w", err)
+	}
+
+	return resp, nil
 }

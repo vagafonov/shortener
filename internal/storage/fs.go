@@ -83,6 +83,18 @@ func (fss *fileSystemStorage) GetAll() ([]entity.URL, error) {
 	return res, nil
 }
 
+func (fss *fileSystemStorage) AddBatch(b []entity.URL) (int, error) {
+	encoder := json.NewEncoder(fss.file)
+	for _, v := range b {
+		err := encoder.Encode(v)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return len(b), nil
+}
+
 func (fss *fileSystemStorage) Truncate() {
 }
 

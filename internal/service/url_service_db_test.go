@@ -11,6 +11,8 @@ import (
 	"github.com/vagafonov/shortener/internal/container"
 	"github.com/vagafonov/shortener/internal/contract"
 	"github.com/vagafonov/shortener/internal/logger"
+	"github.com/vagafonov/shortener/internal/request"
+	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/internal/storage"
 	"github.com/vagafonov/shortener/pkg/entity"
 	hasher "github.com/vagafonov/shortener/pkg/hasher"
@@ -145,5 +147,64 @@ func (s *ServiceDBSuite) TestRestoreURLs() {
 		totalRestored, err := s.service.RestoreURLs(fileName)
 		s.Require().NoError(err)
 		s.Require().Equal(1, totalRestored)
+	})
+}
+
+func (s *ServiceDBSuite) TestAddBatch() {
+	s.Run("add batch", func() {
+		/*
+			expEntity := &entity.URL{
+				UUID:     uuid.UUID{},
+				Short:    "*****",
+				Original: "some_url",
+			}
+			s.backupStorage.SetGetAllResponse([]entity.URL{*expEntity}, nil)
+		*/
+		ctrl := gomock.NewController(s.T())
+		defer ctrl.Finish()
+		m := storage.NewMockStorage(ctrl)
+
+		newEntities := []entity.URL{
+			{
+				Short:    "*****",
+				Original: "aaa",
+			},
+			{
+				Short:    "*****",
+				Original: "bbb",
+			},
+		}
+
+		m.EXPECT().AddBatch(newEntities).Return(2, nil)
+		s.service = NewURLService(
+			s.cnt.GetLogger(),
+			m,
+			s.cnt.GetBackupStorage(),
+			s.cnt.GetHasher(),
+		)
+
+		req := []request.ShortenBatchRequest{
+			{
+				CorrelationID: "1",
+				OriginalURL:   "aaa",
+			},
+			{
+				CorrelationID: "2",
+				OriginalURL:   "bbb",
+			},
+		}
+		resp, err := s.service.MakeShortURLBatch(req, 5, "url")
+		s.Require().NoError(err)
+		respExp := []response.ShortenBatchResponse{
+			{
+				CorrelationID: "1",
+				ShortURL:      "url/*****",
+			},
+			{
+				CorrelationID: "2",
+				ShortURL:      "url/*****",
+			},
+		}
+		s.Require().Equal(respExp, resp)
 	})
 }

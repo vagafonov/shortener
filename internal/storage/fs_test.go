@@ -118,6 +118,25 @@ func (s *FileSystemStorageTestSuite) TestGetByURL() {
 	os.Remove(fileName)
 }
 
+func (s *FileSystemStorageTestSuite) TestAddBatch() {
+	fss, err := NewFileSystemStorage(fileName)
+	s.Require().NoError(err)
+	defer fss.Close()
+
+	URLs := []entity.URL{
+		{
+			UUID:     uuid.UUID{},
+			Short:    "",
+			Original: "",
+		},
+	}
+
+	totalCreated, err := fss.AddBatch(URLs)
+	s.Require().NoError(err)
+	s.Require().Equal(1, totalCreated)
+	os.Remove(fileName)
+}
+
 func addTestURLToFile(id uuid.UUID, shortURL string, fullURL string) (*entity.URL, error) {
 	f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o666)
 	if err != nil {
