@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-const statusToGzip = 300
+const statusToGzip = 500
 
 type compressGzipWriter struct {
 	w  http.ResponseWriter

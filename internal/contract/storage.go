@@ -6,7 +6,10 @@ import (
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
-var ErrAlreadyExists = errors.New("already exists")
+var (
+	ErrAlreadyExistsInStorage = errors.New("already exists")
+	ErrURLNotAdded            = errors.New("url not added")
+)
 
 type Storage interface {
 	GetByHash(hash string) (*entity.URL, error)

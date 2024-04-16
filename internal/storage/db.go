@@ -11,8 +11,6 @@ import (
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
-var ErrURLNotAdded = errors.New("url not added")
-
 type dbStorage struct {
 	connection *sql.DB
 }
@@ -68,7 +66,7 @@ func (s *dbStorage) Add(hash string, url string) (*entity.URL, error) {
 	}
 
 	if rows == 0 {
-		return nil, ErrURLNotAdded
+		return nil, contract.ErrURLNotAdded
 	}
 
 	return &entity.URL{

@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vagafonov/shortener/internal/container"
+	"github.com/vagafonov/shortener/internal/contract"
 	"github.com/vagafonov/shortener/internal/middleware"
 	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/internal/validate"
@@ -78,13 +79,17 @@ func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request)
 		return
 	}
 	shortURL, err := a.cnt.GetServiceURL().MakeShortURL(string(body), a.cnt.GetConfig().ShortURLLength)
-	// TODO check error type
+	statusCode := http.StatusCreated
 	if err != nil {
-		a.cnt.GetLogger().Err(err).Msg("cannot read body")
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+		if errors.Is(err, contract.ErrURLAlreadyExists) {
+			statusCode = http.StatusConflict
+		} else {
+			a.cnt.GetLogger().Err(err).Msg("cannot read body")
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+		}
 	}
-	res.WriteHeader(http.StatusCreated)
 
+	res.WriteHeader(statusCode)
 	if _, err := fmt.Fprintf(res, "%s/%s", a.cnt.GetConfig().ResultURL, shortURL.Short); err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
@@ -108,12 +113,20 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 	}
 
 	shortURL, err := a.cnt.GetServiceURL().MakeShortURL(validatedRequest.URL, a.cnt.GetConfig().ShortURLLength)
+	statusCode := http.StatusCreated
 	if err != nil {
-		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot make short")
-		res.WriteHeader(http.StatusInternalServerError)
+		if errors.Is(err, contract.ErrURLAlreadyExists) {
+			statusCode = http.StatusConflict
+		} else {
+			a.cnt.GetLogger().Err(err).Msg("cannot read body")
+			http.Error(res, err.Error(), http.StatusInternalServerError)
 
-		return
+			return
+		}
 	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(statusCode)
 
 	jsonRes, err := json.Marshal(response.ShortenResponse{
 		Result: fmt.Sprintf("%s/%s", a.cnt.GetConfig().ResultURL, shortURL.Short),
@@ -125,8 +138,6 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res.Header().Set("content-type", "application/json")
-	res.WriteHeader(http.StatusCreated)
 	_, err = res.Write(jsonRes)
 	if err != nil {
 		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot encode response to JSON")

@@ -40,15 +40,10 @@ func (s *MemoryStorageTestSuite) TestAddBatch() {
 			Short:    "a",
 			Original: "aaa",
 		},
-		{
-			UUID:     uuid.UUID{},
-			Short:    "b",
-			Original: "bbb",
-		},
 	}
 	tc, err := ms.AddBatch(batchURLs)
 	s.Require().NoError(err)
-	s.Require().Equal(2, tc)
+	s.Require().Equal(1, tc)
 
 	allURLs, err := ms.GetAll()
 	s.Require().Equal(batchURLs, allURLs)

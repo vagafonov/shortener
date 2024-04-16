@@ -39,7 +39,7 @@ func (s *urlService) MakeShortURL(url string, length int) (*entity.URL, error) {
 		return nil, err
 	}
 	if shortURL != nil {
-		return shortURL, nil
+		return shortURL, contract.ErrURLAlreadyExists
 	}
 	hashShortURL := s.hasher.Hash(length)
 	shortURL, err = s.mainStorage.Add(hashShortURL, url)

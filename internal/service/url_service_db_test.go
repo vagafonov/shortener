@@ -119,7 +119,7 @@ func (s *ServiceDBSuite) TestMakeShortURL() {
 		)
 
 		e, err := s.service.MakeShortURL("some_url", 5)
-		s.Require().NoError(err)
+		s.Require().Error(err)
 		s.Require().Equal(expEntity, e)
 	})
 }

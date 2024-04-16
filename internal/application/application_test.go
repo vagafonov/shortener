@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/vagafonov/shortener/internal/config"
 	"github.com/vagafonov/shortener/internal/container"
+	"github.com/vagafonov/shortener/internal/contract"
 	"github.com/vagafonov/shortener/internal/logger"
 	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/internal/service"
@@ -93,6 +94,18 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 			code:   http.StatusBadRequest,
 			init:   func(s *FunctionalTestSuite) {},
 		},
+		{
+			method: http.MethodPost,
+			body:   "http://test.local",
+			code:   http.StatusConflict,
+			init: func(s *FunctionalTestSuite) {
+				s.serviceURL.SetMakeShortURLResult(&entity.URL{
+					UUID:     uuid.UUID{},
+					Short:    "********",
+					Original: "http://test.local",
+				}, contract.ErrURLAlreadyExists)
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -102,7 +115,7 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 			w := httptest.NewRecorder()
 			s.app.createShortURL(w, r)
 			s.Require().Equal(test.code, w.Code)
-			if test.code == http.StatusCreated {
+			if test.code == http.StatusCreated || test.code == http.StatusConflict {
 				u, err := url.Parse(w.Body.String())
 				s.Require().NoError(err)
 				s.Require().Len(strings.Trim(u.Path, "/"), s.cnt.GetConfig().ShortURLLength)
@@ -111,7 +124,7 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 	}
 }
 
-func (s *FunctionalTestSuite) TestApiShorten() {
+func (s *FunctionalTestSuite) TestApiShorten() { //nolint:funlen
 	tests := []struct {
 		method string
 		body   string
@@ -137,6 +150,18 @@ func (s *FunctionalTestSuite) TestApiShorten() {
 			init: func(s *FunctionalTestSuite) {
 			},
 		},
+		{
+			method: http.MethodPost,
+			body:   `{"url":"https://practicum.yandex.ru"}`,
+			code:   http.StatusConflict,
+			init: func(s *FunctionalTestSuite) {
+				s.serviceURL.SetMakeShortURLResult(&entity.URL{
+					UUID:     uuid.UUID{},
+					Short:    "********",
+					Original: "http://test.local",
+				}, contract.ErrURLAlreadyExists)
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -153,7 +178,7 @@ func (s *FunctionalTestSuite) TestApiShorten() {
 				err := decoder.Decode(&resp)
 				s.Require().NoError(err)
 
-				if test.code == http.StatusCreated {
+				if test.code == http.StatusCreated || test.code == http.StatusConflict {
 					u, err := url.Parse(resp.Result)
 					s.Require().NoError(err)
 					s.Require().Len(strings.Trim(u.Path, "/"), s.cnt.GetConfig().ShortURLLength)

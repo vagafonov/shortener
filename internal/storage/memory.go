@@ -42,7 +42,7 @@ func (s *memoryStorage) GetByURL(val string) (*entity.URL, error) {
 func (s *memoryStorage) Add(hash string, url string) (*entity.URL, error) {
 	for k, v := range s.storage {
 		if k == hash || v == url {
-			return nil, contract.ErrAlreadyExists
+			return nil, contract.ErrAlreadyExistsInStorage
 		}
 	}
 	s.storage[hash] = url

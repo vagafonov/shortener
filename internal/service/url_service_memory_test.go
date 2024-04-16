@@ -112,7 +112,7 @@ func (s *ServiceURLMemorySuite) TestMakeShortURL() {
 		}
 		s.mainStorage.SetGetByURLResponse(expEntity, nil)
 		e, err := s.service.MakeShortURL("some_url", 5)
-		s.Require().NoError(err)
+		s.Require().Error(err)
 		s.Require().Equal(expEntity, e)
 	})
 }
