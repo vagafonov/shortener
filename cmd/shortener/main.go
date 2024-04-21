@@ -24,6 +24,7 @@ type options struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
+//nolint:funlen
 func main() {
 	opt := &options{
 		ServerURL:       "",
@@ -73,11 +74,18 @@ func main() {
 	}
 
 	cnt.SetBackupStorage(backupStorage)
-	serv, err := service.ServiceURLFactory(cnt, "real")
+
+	servURL, err := service.ServiceURLFactory(cnt, "real")
 	if err != nil {
 		log.Fatal(err)
 	}
-	cnt.SetServiceURL(serv)
+	cnt.SetServiceURL(servURL)
+
+	servHealthcheck, err := service.ServiceHealthCheckFactory(cnt, "real")
+	if err != nil {
+		log.Fatal(err)
+	}
+	cnt.SetServiceHealthCheck(servHealthcheck)
 
 	app := application.NewApplication(cnt)
 	if err := app.Serve(); err != nil {

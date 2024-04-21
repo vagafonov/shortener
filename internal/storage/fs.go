@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"os"
 
@@ -93,6 +94,10 @@ func (fss *fileSystemStorage) AddBatch(b []entity.URL) (int, error) {
 	}
 
 	return len(b), nil
+}
+
+func (fss *fileSystemStorage) Ping(ctx context.Context) error {
+	return nil
 }
 
 func (fss *fileSystemStorage) Truncate() {

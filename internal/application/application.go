@@ -166,7 +166,7 @@ func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
 func (a *Application) ping(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	if err := a.cnt.GetDB().PingContext(ctx); err != nil { //nolint:contextcheck
+	if err := a.cnt.GetServiceHealthCheck().Ping(ctx); err != nil { //nolint:contextcheck
 		a.cnt.GetLogger().Error().Err(err).Send()
 		res.WriteHeader(http.StatusInternalServerError)
 	}

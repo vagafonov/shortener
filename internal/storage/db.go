@@ -118,6 +118,10 @@ func (s *dbStorage) AddBatch(b []entity.URL) (int, error) {
 	return len(b), tx.Commit()
 }
 
+func (s *dbStorage) Ping(ctx context.Context) error {
+	return s.connection.PingContext(ctx)
+}
+
 func (s *dbStorage) Truncate() {
 }
 

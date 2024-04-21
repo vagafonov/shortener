@@ -30,9 +30,10 @@ const fileStoragePath = "short-url-db-test.json"
 
 type FunctionalTestSuite struct {
 	suite.Suite
-	cnt        *container.Container
-	app        *Application
-	serviceURL *service.URLServiceMock
+	cnt                *container.Container
+	app                *Application
+	serviceURL         *service.URLServiceMock
+	serviceHealthCheck *service.HealthCheckServiceMock
 }
 
 func TestFunctionalTestSuite(t *testing.T) {
@@ -44,7 +45,13 @@ func (s *FunctionalTestSuite) SetupSuite() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfg := config.NewConfig("test", "http://test:8080", fileStoragePath, "test")
+
+	cfg := config.NewConfig(
+		"test",
+		"http://test:8080",
+		fileStoragePath,
+		"test",
+	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	s.cnt = container.NewContainer(
 		cfg,
@@ -54,12 +61,20 @@ func (s *FunctionalTestSuite) SetupSuite() {
 		lr,
 		nil,
 	)
-	serv, err := service.ServiceURLFactory(s.cnt, "mock")
+	servURL, err := service.ServiceURLFactory(s.cnt, "mock")
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.serviceURL, _ = serv.(*service.URLServiceMock)
+	s.serviceURL, _ = servURL.(*service.URLServiceMock)
 	s.cnt.SetServiceURL(s.serviceURL)
+
+	servHealthcheck, err := service.ServiceHealthCheckFactory(s.cnt, "mock")
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.serviceHealthCheck, _ = servHealthcheck.(*service.HealthCheckServiceMock)
+	s.cnt.SetServiceHealthCheck(s.serviceHealthCheck)
+
 	s.app = NewApplication(
 		s.cnt,
 	)
@@ -125,6 +140,8 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 }
 
 func (s *FunctionalTestSuite) TestApiShorten() { //nolint:funlen
+	srv := httptest.NewServer(s.app.Routes())
+	defer srv.Close()
 	tests := []struct {
 		method string
 		body   string
@@ -167,24 +184,23 @@ func (s *FunctionalTestSuite) TestApiShorten() { //nolint:funlen
 	for _, test := range tests {
 		s.Run(test.method, func() {
 			test.init(s)
-			r := httptest.NewRequest(test.method, "/api/shorten", strings.NewReader(test.body))
-			w := httptest.NewRecorder()
-			s.app.shorten(w, r)
-			s.Require().Equal(test.code, w.Code)
+			r := httptest.NewRequest(test.method, srv.URL+"/api/shorten", strings.NewReader(test.body))
+			r.RequestURI = ""
+			resp, err := http.DefaultClient.Do(r)
+			s.Require().NoError(err)
+			defer resp.Body.Close()
+			s.Require().Equal(test.code, resp.StatusCode)
 
-			if w.Body.Bytes() != nil {
-				decoder := json.NewDecoder(w.Body)
-				var resp response.ShortenResponse
-				err := decoder.Decode(&resp)
+			if test.code == http.StatusCreated || test.code == http.StatusConflict {
+				decoder := json.NewDecoder(resp.Body)
+				var shResp response.ShortenResponse
+				err = decoder.Decode(&shResp)
 				s.Require().NoError(err)
-
-				if test.code == http.StatusCreated || test.code == http.StatusConflict {
-					u, err := url.Parse(resp.Result)
-					s.Require().NoError(err)
-					s.Require().Len(strings.Trim(u.Path, "/"), s.cnt.GetConfig().ShortURLLength)
-					s.Require().Equal("application/json", w.Header().Get("content-type"))
-					s.Require().Empty(w.Header().Get("Content-Encoding"))
-				}
+				u, err := url.Parse(shResp.Result)
+				s.Require().NoError(err)
+				s.Require().Len(strings.Trim(u.Path, "/"), s.cnt.GetConfig().ShortURLLength)
+				s.Require().Equal("application/json", resp.Header.Get("content-type"))
+				s.Require().Empty(resp.Header.Get("Content-Encoding"))
 			}
 		})
 	}

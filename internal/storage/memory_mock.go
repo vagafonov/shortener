@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"context"
+
 	"github.com/vagafonov/shortener/internal/contract"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
@@ -65,6 +67,8 @@ func (s *MemoryStorageMock) SetAddBatchResponse(totalCreated int, err error) {
 	s.getAddBatchResponseTotalCreated = totalCreated
 	s.getAddBatchResponseError = err
 }
+
+func (s *MemoryStorageMock) Ping(ctx context.Context) error { return nil }
 
 func (s *MemoryStorageMock) Truncate() {
 }

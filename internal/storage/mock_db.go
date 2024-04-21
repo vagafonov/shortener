@@ -5,6 +5,7 @@
 package storage
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -50,18 +51,18 @@ func (mr *MockStorageMockRecorder) Add(hash, url interface{}) *gomock.Call {
 }
 
 // AddBatch mocks base method.
-func (m *MockStorage) AddBatch(arg0 []entity.URL) (int, error) {
+func (m *MockStorage) AddBatch(URLs []entity.URL) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddBatch", arg0)
+	ret := m.ctrl.Call(m, "AddBatch", URLs)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddBatch indicates an expected call of AddBatch.
-func (mr *MockStorageMockRecorder) AddBatch(arg0 interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) AddBatch(URLs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBatch", reflect.TypeOf((*MockStorage)(nil).AddBatch), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBatch", reflect.TypeOf((*MockStorage)(nil).AddBatch), URLs)
 }
 
 // Close mocks base method.
@@ -121,6 +122,20 @@ func (m *MockStorage) GetByURL(url string) (*entity.URL, error) {
 func (mr *MockStorageMockRecorder) GetByURL(url interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByURL", reflect.TypeOf((*MockStorage)(nil).GetByURL), url)
+}
+
+// Ping mocks base method.
+func (m *MockStorage) Ping(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ping", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ping indicates an expected call of Ping.
+func (mr *MockStorageMockRecorder) Ping(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockStorage)(nil).Ping), ctx)
 }
 
 // Truncate mocks base method.

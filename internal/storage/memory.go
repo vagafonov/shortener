@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"context"
+
 	"github.com/vagafonov/shortener/internal/contract"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
@@ -73,6 +75,10 @@ func (s *memoryStorage) AddBatch(b []entity.URL) (int, error) {
 	}
 
 	return len(b), nil
+}
+
+func (s *memoryStorage) Ping(ctx context.Context) error {
+	return nil
 }
 
 func (s *memoryStorage) Truncate() {

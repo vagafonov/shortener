@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"context"
 	"errors"
 
 	"github.com/vagafonov/shortener/pkg/entity"
@@ -17,6 +18,7 @@ type Storage interface {
 	Add(hash string, url string) (*entity.URL, error)
 	AddBatch(URLs []entity.URL) (int, error)
 	GetAll() ([]entity.URL, error) // todo use pointer
+	Ping(ctx context.Context) error
 	Truncate()
 	Close() error
 }

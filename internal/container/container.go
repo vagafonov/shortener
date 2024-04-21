@@ -11,13 +11,14 @@ import (
 )
 
 type Container struct {
-	cfg           *config.Config
-	mainStorage   contract.Storage
-	backupStorage contract.Storage
-	hasher        hash.Hasher
-	logger        *zerolog.Logger
-	db            *sql.DB
-	serviceURL    contract.Service
+	cfg                *config.Config
+	mainStorage        contract.Storage
+	backupStorage      contract.Storage
+	hasher             hash.Hasher
+	logger             *zerolog.Logger
+	db                 *sql.DB
+	serviceURL         contract.Service
+	serviceHealthCheck contract.ServiceHealthCheck
 }
 
 func NewContainer(
@@ -80,4 +81,12 @@ func (c *Container) GetServiceURL() contract.Service {
 
 func (c *Container) SetServiceURL(s contract.Service) {
 	c.serviceURL = s
+}
+
+func (c *Container) GetServiceHealthCheck() contract.ServiceHealthCheck {
+	return c.serviceHealthCheck
+}
+
+func (c *Container) SetServiceHealthCheck(s contract.ServiceHealthCheck) {
+	c.serviceHealthCheck = s
 }

@@ -25,3 +25,18 @@ func ServiceURLFactory(cnt *container.Container, t string) (contract.Service, er
 		return nil, ErrUndefinedServiceType
 	}
 }
+
+func ServiceHealthCheckFactory(cnt *container.Container, t string) (contract.ServiceHealthCheck, error) {
+	// TODO use enum
+	switch t {
+	case "real":
+		return NewHealtCheckService(
+			cnt.GetLogger(),
+			cnt.GetMainStorage(),
+		), nil
+	case "mock":
+		return NewHealthCheckServiceMock(), nil
+	default:
+		return nil, ErrUndefinedServiceType
+	}
+}

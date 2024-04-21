@@ -10,6 +10,7 @@ import (
 
 var ErrURLAlreadyExists = errors.New("url already exists")
 
+// TODO Rename.
 type Service interface {
 	MakeShortURL(url string, length int) (*entity.URL, error)
 	MakeShortURLBatch(req []request.ShortenBatchRequest, length int, baseURL string) ([]response.ShortenBatchResponse, error) //nolint:lll
