@@ -1,4 +1,4 @@
-create table public.url
+create table url
 (
     id     uuid not null,
     short  text,

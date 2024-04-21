@@ -3,8 +3,6 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"fmt"
-	"log"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/vagafonov/shortener/internal/application"
@@ -35,6 +33,7 @@ func main() {
 	parseEnv(opt)
 
 	cfg := config.NewConfig(opt.ServerURL, opt.ResultURL, opt.FileStoragePath, opt.DatabaseDSN)
+	lr := logger.CreateLogger(cfg.LogLevel)
 	var strg contract.Storage
 	var err error
 	var db *sql.DB
@@ -42,22 +41,21 @@ func main() {
 
 	if cfg.DatabaseDSN != "" {
 		if db, err = createConnect(cfg.DatabaseDSN); err != nil {
-			log.Fatal(err)
+			lr.Err(err).Send()
 		}
 		err := runMigrations(db)
 
 		if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-			log.Fatal(fmt.Errorf("cannot run migrations: %w", err))
+			lr.Err(err).Send()
 		}
 		strg = storage.NewDBStorage(db)
 	} else {
 		strg = storage.NewMemoryStorage()
 		if fstorage, err = storage.NewFileSystemStorage(cfg.FileStoragePath); err != nil {
-			log.Fatal(err)
+			lr.Err(err).Send()
 		}
 	}
 
-	lr := logger.CreateLogger(cfg.LogLevel)
 	hr := hasher.NewRandHasher()
 	cnt := container.NewContainer(
 		cfg,
@@ -70,25 +68,25 @@ func main() {
 
 	backupStorage, err := storage.StorageFactory(cnt, "fs")
 	if err != nil {
-		log.Fatal(err)
+		lr.Err(err).Send()
 	}
 
 	cnt.SetBackupStorage(backupStorage)
 
 	servURL, err := service.ServiceURLFactory(cnt, "real")
 	if err != nil {
-		log.Fatal(err)
+		lr.Err(err).Send()
 	}
 	cnt.SetServiceURL(servURL)
 
 	servHealthcheck, err := service.ServiceHealthCheckFactory(cnt, "real")
 	if err != nil {
-		log.Fatal(err)
+		lr.Err(err).Send()
 	}
 	cnt.SetServiceHealthCheck(servHealthcheck)
 
 	app := application.NewApplication(cnt)
 	if err := app.Serve(); err != nil {
-		log.Fatal(err)
+		lr.Err(err).Send()
 	}
 }

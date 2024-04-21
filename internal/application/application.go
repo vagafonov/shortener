@@ -32,7 +32,7 @@ func (a *Application) Serve() error {
 	if a.cnt.GetConfig().FileStoragePath != "" {
 		restored, err := a.cnt.GetServiceURL().RestoreURLs(a.cnt.GetConfig().FileStoragePath)
 		if err != nil {
-			return fmt.Errorf("cannot restore URLs: %w", err)
+			a.cnt.GetLogger().Info().Msgf("cannot restore URLs: %s", err.Error())
 		}
 		a.cnt.GetLogger().Info().Msgf("restored urls %v", restored)
 	}
