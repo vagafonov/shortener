@@ -1,2 +1,2 @@
-alter table url
+alter table urls
 drop constraint short_uniq;

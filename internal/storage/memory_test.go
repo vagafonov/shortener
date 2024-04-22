@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/uuid"
@@ -33,6 +34,7 @@ func (s *MemoryStorageTestSuite) TestGetByURL() {
 }
 
 func (s *MemoryStorageTestSuite) TestAddBatch() {
+	ctx := context.Background()
 	ms := NewMemoryStorage()
 	batchURLs := []entity.URL{
 		{
@@ -41,11 +43,11 @@ func (s *MemoryStorageTestSuite) TestAddBatch() {
 			Original: "aaa",
 		},
 	}
-	tc, err := ms.AddBatch(batchURLs)
+	tc, err := ms.AddBatch(ctx, batchURLs)
 	s.Require().NoError(err)
 	s.Require().Equal(1, tc)
 
-	allURLs, err := ms.GetAll()
+	allURLs, err := ms.GetAll(ctx)
 	s.Require().Equal(batchURLs, allURLs)
 	s.Require().NoError(err)
 }

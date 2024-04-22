@@ -36,33 +36,33 @@ func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockStorage) Add(hash, url string) (*entity.URL, error) {
+func (m *MockStorage) Add(ctx context.Context, hash, url string) (*entity.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Add", hash, url)
+	ret := m.ctrl.Call(m, "Add", ctx, hash, url)
 	ret0, _ := ret[0].(*entity.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Add indicates an expected call of Add.
-func (mr *MockStorageMockRecorder) Add(hash, url interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) Add(ctx, hash, url interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockStorage)(nil).Add), hash, url)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockStorage)(nil).Add), ctx, hash, url)
 }
 
 // AddBatch mocks base method.
-func (m *MockStorage) AddBatch(URLs []entity.URL) (int, error) {
+func (m *MockStorage) AddBatch(ctx context.Context, URLs []entity.URL) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddBatch", URLs)
+	ret := m.ctrl.Call(m, "AddBatch", ctx, URLs)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddBatch indicates an expected call of AddBatch.
-func (mr *MockStorageMockRecorder) AddBatch(URLs interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) AddBatch(ctx, URLs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBatch", reflect.TypeOf((*MockStorage)(nil).AddBatch), URLs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBatch", reflect.TypeOf((*MockStorage)(nil).AddBatch), ctx, URLs)
 }
 
 // Close mocks base method.
@@ -80,48 +80,48 @@ func (mr *MockStorageMockRecorder) Close() *gomock.Call {
 }
 
 // GetAll mocks base method.
-func (m *MockStorage) GetAll() ([]entity.URL, error) {
+func (m *MockStorage) GetAll(ctx context.Context) ([]entity.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAll")
+	ret := m.ctrl.Call(m, "GetAll", ctx)
 	ret0, _ := ret[0].([]entity.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetAll indicates an expected call of GetAll.
-func (mr *MockStorageMockRecorder) GetAll() *gomock.Call {
+func (mr *MockStorageMockRecorder) GetAll(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockStorage)(nil).GetAll))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockStorage)(nil).GetAll), ctx)
 }
 
 // GetByHash mocks base method.
-func (m *MockStorage) GetByHash(hash string) (*entity.URL, error) {
+func (m *MockStorage) GetByHash(ctx context.Context, hash string) (*entity.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByHash", hash)
+	ret := m.ctrl.Call(m, "GetByHash", ctx, hash)
 	ret0, _ := ret[0].(*entity.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetByHash indicates an expected call of GetByHash.
-func (mr *MockStorageMockRecorder) GetByHash(hash interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) GetByHash(ctx, hash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByHash", reflect.TypeOf((*MockStorage)(nil).GetByHash), hash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByHash", reflect.TypeOf((*MockStorage)(nil).GetByHash), ctx, hash)
 }
 
 // GetByURL mocks base method.
-func (m *MockStorage) GetByURL(url string) (*entity.URL, error) {
+func (m *MockStorage) GetByURL(ctx context.Context, url string) (*entity.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByURL", url)
+	ret := m.ctrl.Call(m, "GetByURL", ctx, url)
 	ret0, _ := ret[0].(*entity.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetByURL indicates an expected call of GetByURL.
-func (mr *MockStorageMockRecorder) GetByURL(url interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) GetByURL(ctx, url interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByURL", reflect.TypeOf((*MockStorage)(nil).GetByURL), url)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByURL", reflect.TypeOf((*MockStorage)(nil).GetByURL), ctx, url)
 }
 
 // Ping mocks base method.

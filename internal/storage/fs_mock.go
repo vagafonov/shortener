@@ -22,15 +22,15 @@ func NewFileSystemStorageMock() contract.Storage {
 	return &FileSystemStorageMock{}
 }
 
-func (s *FileSystemStorageMock) GetByHash(hash string) (*entity.URL, error) {
+func (s *FileSystemStorageMock) GetByHash(ctx context.Context, hash string) (*entity.URL, error) {
 	return nil, nil //nolint:nilnil
 }
 
-func (s *FileSystemStorageMock) GetByURL(url string) (*entity.URL, error) {
+func (s *FileSystemStorageMock) GetByURL(ctx context.Context, url string) (*entity.URL, error) {
 	return nil, nil //nolint:nilnil
 }
 
-func (s *FileSystemStorageMock) Add(hash string, url string) (*entity.URL, error) {
+func (s *FileSystemStorageMock) Add(ctx context.Context, hash string, url string) (*entity.URL, error) {
 	return s.addResponseEntity, s.addResponseError
 }
 
@@ -39,7 +39,7 @@ func (s *FileSystemStorageMock) SetAddResponse(e *entity.URL, err error) {
 	s.addResponseError = err
 }
 
-func (s *FileSystemStorageMock) GetAll() ([]entity.URL, error) {
+func (s *FileSystemStorageMock) GetAll(ctx context.Context) ([]entity.URL, error) {
 	return s.getAllResponseEntity, s.getAllResponseError
 }
 
@@ -48,7 +48,7 @@ func (s *FileSystemStorageMock) SetGetAllResponse(e []entity.URL, err error) {
 	s.getAllResponseError = err
 }
 
-func (s *FileSystemStorageMock) AddBatch(b []entity.URL) (int, error) {
+func (s *FileSystemStorageMock) AddBatch(ctx context.Context, b []entity.URL) (int, error) {
 	return s.addBatchResponseTotalCreated, s.addBatchResponseError
 }
 

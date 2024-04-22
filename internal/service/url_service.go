@@ -1,11 +1,12 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/rs/zerolog"
 	"github.com/vagafonov/shortener/internal/contract"
-	"github.com/vagafonov/shortener/internal/request"
+	"github.com/vagafonov/shortener/internal/customerror"
 	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/pkg/entity"
 	hash "github.com/vagafonov/shortener/pkg/hasher"
@@ -33,20 +34,20 @@ func NewURLService(
 	}
 }
 
-func (s *urlService) MakeShortURL(url string, length int) (*entity.URL, error) {
-	shortURL, err := s.mainStorage.GetByURL(url)
+func (s *urlService) MakeShortURL(ctx context.Context, url string, length int) (*entity.URL, error) {
+	shortURL, err := s.mainStorage.GetByURL(ctx, url)
 	if err != nil {
 		return nil, err
 	}
 	if shortURL != nil {
-		return shortURL, contract.ErrURLAlreadyExists
+		return shortURL, customerror.ErrURLAlreadyExists
 	}
 	hashShortURL := s.hasher.Hash(length)
-	shortURL, err = s.mainStorage.Add(hashShortURL, url)
+	shortURL, err = s.mainStorage.Add(ctx, hashShortURL, url)
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.backupStorage.Add(hashShortURL, url)
+	_, err = s.backupStorage.Add(ctx, hashShortURL, url)
 	if err != nil {
 		return nil, err
 	}
@@ -54,23 +55,23 @@ func (s *urlService) MakeShortURL(url string, length int) (*entity.URL, error) {
 	return shortURL, nil
 }
 
-func (s *urlService) GetShortURL(url string) (*entity.URL, error) {
+func (s *urlService) GetShortURL(ctx context.Context, url string) (*entity.URL, error) {
 	s.logger.Info().Str("url", url).Msg("GetShortURL")
 
-	return s.mainStorage.GetByHash(url)
+	return s.mainStorage.GetByHash(ctx, url)
 }
 
-func (s *urlService) RestoreURLs(fileName string) (int, error) {
+func (s *urlService) RestoreURLs(ctx context.Context, fileName string) (int, error) {
 	// TODO need pagination
 
-	URLs, err := s.backupStorage.GetAll()
+	URLs, err := s.backupStorage.GetAll(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get all URLs: %w", err)
 	}
 
 	for _, v := range URLs {
 		// TODO handle id
-		if _, err = s.mainStorage.Add(v.Short, v.Original); err != nil {
+		if _, err = s.mainStorage.Add(ctx, v.Short, v.Original); err != nil {
 			return 0, fmt.Errorf("failed to add URL: %w", err)
 		}
 	}
@@ -79,33 +80,25 @@ func (s *urlService) RestoreURLs(fileName string) (int, error) {
 }
 
 func (s *urlService) MakeShortURLBatch(
-	req []request.ShortenBatchRequest,
-	length int,
+	ctx context.Context,
+	urls []entity.URL,
 	baseURL string,
 ) ([]response.ShortenBatchResponse, error) {
-	URLs := make([]entity.URL, len(req))
-	for k, v := range req {
-		URLs[k] = entity.URL{
-			Short:    s.hasher.Hash(length),
-			Original: v.OriginalURL,
-		}
-	}
-
-	totalCreated, err := s.mainStorage.AddBatch(URLs)
+	totalCreated, err := s.mainStorage.AddBatch(ctx, urls)
 	if err != nil {
 		return nil, fmt.Errorf("cannot add batch to main storage: %w", err)
 	}
 
 	resp := make([]response.ShortenBatchResponse, totalCreated)
 
-	for k, v := range URLs {
+	for k, v := range urls {
 		resp[k] = response.ShortenBatchResponse{
-			CorrelationID: req[k].CorrelationID,
+			CorrelationID: v.ID,
 			ShortURL:      fmt.Sprintf("%s/%s", baseURL, v.Short),
 		}
 	}
 
-	_, err = s.backupStorage.AddBatch(URLs)
+	_, err = s.backupStorage.AddBatch(ctx, urls)
 	if err != nil {
 		return nil, fmt.Errorf("cannot add batch to backup storage: %w", err)
 	}

@@ -28,7 +28,7 @@ func NewMemoryStorageMock() contract.Storage {
 	return &MemoryStorageMock{}
 }
 
-func (s *MemoryStorageMock) GetByHash(hash string) (*entity.URL, error) {
+func (s *MemoryStorageMock) GetByHash(ctx context.Context, hash string) (*entity.URL, error) {
 	return s.getByHashResponseEntity, s.getByHashResponseError
 }
 
@@ -37,7 +37,7 @@ func (s *MemoryStorageMock) SetGetByHashResponse(e *entity.URL, err error) {
 	s.getByHashResponseError = err
 }
 
-func (s *MemoryStorageMock) GetByURL(url string) (*entity.URL, error) {
+func (s *MemoryStorageMock) GetByURL(ctx context.Context, url string) (*entity.URL, error) {
 	return s.getByURLResponseEntity, s.getByURLResponseError
 }
 
@@ -46,7 +46,7 @@ func (s *MemoryStorageMock) SetGetByURLResponse(e *entity.URL, err error) {
 	s.getByURLResponseError = err
 }
 
-func (s *MemoryStorageMock) Add(hash string, url string) (*entity.URL, error) {
+func (s *MemoryStorageMock) Add(ctx context.Context, hash string, url string) (*entity.URL, error) {
 	return s.addResponseEntity, s.addResponseError
 }
 
@@ -55,11 +55,11 @@ func (s *MemoryStorageMock) SetAddResponse(e *entity.URL, err error) {
 	s.addResponseError = err
 }
 
-func (s *MemoryStorageMock) GetAll() ([]entity.URL, error) {
+func (s *MemoryStorageMock) GetAll(ctx context.Context) ([]entity.URL, error) {
 	return s.getAllResponseEntity, s.getAllResponseError
 }
 
-func (s *MemoryStorageMock) AddBatch(b []entity.URL) (int, error) {
+func (s *MemoryStorageMock) AddBatch(ctx context.Context, b []entity.URL) (int, error) {
 	return s.getAddBatchResponseTotalCreated, s.getAddBatchResponseError
 }
 

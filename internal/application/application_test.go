@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/vagafonov/shortener/internal/config"
 	"github.com/vagafonov/shortener/internal/container"
-	"github.com/vagafonov/shortener/internal/contract"
+	"github.com/vagafonov/shortener/internal/customerror"
 	"github.com/vagafonov/shortener/internal/logger"
 	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/internal/service"
@@ -118,7 +118,7 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 					UUID:     uuid.UUID{},
 					Short:    "********",
 					Original: "http://test.local",
-				}, contract.ErrURLAlreadyExists)
+				}, customerror.ErrURLAlreadyExists)
 			},
 		},
 	}
@@ -176,7 +176,7 @@ func (s *FunctionalTestSuite) TestApiShorten() { //nolint:funlen
 					UUID:     uuid.UUID{},
 					Short:    "********",
 					Original: "http://test.local",
-				}, contract.ErrURLAlreadyExists)
+				}, customerror.ErrURLAlreadyExists)
 			},
 		},
 	}

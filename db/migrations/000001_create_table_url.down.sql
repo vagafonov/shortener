@@ -1,1 +1,1 @@
-drop table url;
+drop table urls;

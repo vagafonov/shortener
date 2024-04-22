@@ -8,8 +8,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vagafonov/shortener/internal/contract"
+	"github.com/vagafonov/shortener/internal/customerror"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
+
+const batchInsertSize = 100
 
 type dbStorage struct {
 	connection *sql.DB
@@ -21,9 +24,9 @@ func NewDBStorage(db *sql.DB) contract.Storage {
 	}
 }
 
-func (s *dbStorage) GetByHash(key string) (*entity.URL, error) {
-	q := `SELECT id, short, original FROM url WHERE short = $1`
-	row := s.connection.QueryRowContext(context.TODO(), q, key)
+func (s *dbStorage) GetByHash(ctx context.Context, key string) (*entity.URL, error) {
+	q := `SELECT id, short, original FROM urls WHERE short = $1`
+	row := s.connection.QueryRowContext(ctx, q, key)
 	var url entity.URL
 	err := row.Scan(&url.UUID, &url.Short, &url.Original)
 	if err != nil {
@@ -33,9 +36,9 @@ func (s *dbStorage) GetByHash(key string) (*entity.URL, error) {
 	return &url, nil
 }
 
-func (s *dbStorage) GetByURL(val string) (*entity.URL, error) {
-	q := `SELECT id, short, original FROM url WHERE original = $1`
-	row := s.connection.QueryRowContext(context.TODO(), q, val)
+func (s *dbStorage) GetByURL(ctx context.Context, val string) (*entity.URL, error) {
+	q := `SELECT id, short, original FROM urls WHERE original = $1`
+	row := s.connection.QueryRowContext(ctx, q, val)
 	if row.Err() != nil {
 		return nil, fmt.Errorf("sql query error: %w", row.Err())
 	}
@@ -52,10 +55,10 @@ func (s *dbStorage) GetByURL(val string) (*entity.URL, error) {
 	return &url, nil
 }
 
-func (s *dbStorage) Add(hash string, url string) (*entity.URL, error) {
-	q := `INSERT INTO url (id, short, original) VALUES ($1, $2, $3)`
+func (s *dbStorage) Add(ctx context.Context, hash string, url string) (*entity.URL, error) {
+	q := `INSERT INTO urls (id, short, original) VALUES ($1, $2, $3)`
 	id := uuid.New()
-	res, err := s.connection.ExecContext(context.TODO(), q, id, hash, url)
+	res, err := s.connection.ExecContext(ctx, q, id, hash, url)
 	if err != nil {
 		return nil, fmt.Errorf("cannot add url: %w", err)
 	}
@@ -66,7 +69,7 @@ func (s *dbStorage) Add(hash string, url string) (*entity.URL, error) {
 	}
 
 	if rows == 0 {
-		return nil, contract.ErrURLNotAdded
+		return nil, customerror.ErrURLNotAdded
 	}
 
 	return &entity.URL{
@@ -76,9 +79,9 @@ func (s *dbStorage) Add(hash string, url string) (*entity.URL, error) {
 	}, nil
 }
 
-func (s *dbStorage) GetAll() ([]entity.URL, error) {
-	q := `SELECT id, short, original FROM url LIMIT 1000`
-	rows, err := s.connection.QueryContext(context.TODO(), q)
+func (s *dbStorage) GetAll(ctx context.Context) ([]entity.URL, error) {
+	q := `SELECT id, short, original FROM urls LIMIT 1000`
+	rows, err := s.connection.QueryContext(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -102,20 +105,50 @@ func (s *dbStorage) GetAll() ([]entity.URL, error) {
 	return urls, nil
 }
 
-func (s *dbStorage) AddBatch(b []entity.URL) (int, error) {
-	tx, err := s.connection.Begin()
-	if err != nil {
-		return 0, err
-	}
+func (s *dbStorage) AddBatch(ctx context.Context, b []entity.URL) (int, error) {
+	bufIns := make([]entity.URL, 0)
+	inserted := 0
 	for _, v := range b {
-		q := `INSERT INTO url (id, short, original) VALUES($1, $2, $3)`
-		_, err := tx.ExecContext(context.Background(), q, uuid.New(), v.Short, v.Original)
-		if err != nil {
-			return 0, tx.Rollback()
+		v.UUID = uuid.New()
+		bufIns = append(bufIns, v)
+		if len(bufIns) == batchInsertSize {
+			if err := s.batchInsert(ctx, bufIns); err != nil {
+				return inserted, err
+			}
+			inserted = +len(bufIns)
+			bufIns = nil
 		}
 	}
-	// завершаем транзакцию
-	return len(b), tx.Commit()
+
+	if err := s.batchInsert(ctx, bufIns); err != nil {
+		return 0, err
+	}
+	inserted = +len(bufIns)
+
+	return inserted, nil
+}
+
+func (s *dbStorage) batchInsert(ctx context.Context, urls []entity.URL) error {
+	tx, err := s.connection.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, short, original) VALUES($1, $2, $3)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, u := range urls {
+		_, err := stmt.ExecContext(ctx, u.UUID, u.Short, u.Original)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (s *dbStorage) Ping(ctx context.Context) error {

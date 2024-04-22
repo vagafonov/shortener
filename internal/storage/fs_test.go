@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"testing"
@@ -24,11 +25,12 @@ func (s *FileSystemStorageTestSuite) SetupSuite() {
 }
 
 func (s *FileSystemStorageTestSuite) TestAdd() {
+	ctx := context.Background()
 	fss, err := NewFileSystemStorage(fileName)
 	s.Require().NoError(err)
 	defer fss.Close()
 
-	resultURL, err := fss.Add("1", "2")
+	resultURL, err := fss.Add(ctx, "1", "2")
 	s.Require().NoError(err)
 	data, err := os.ReadFile(fileName)
 	s.Require().NoError(err)
@@ -45,6 +47,7 @@ func (s *FileSystemStorageTestSuite) TestAdd() {
 }
 
 func (s *FileSystemStorageTestSuite) TestGetAll() {
+	ctx := context.Background()
 	fss, err := NewFileSystemStorage(fileName)
 	s.Require().NoError(err)
 	defer fss.Close()
@@ -54,7 +57,7 @@ func (s *FileSystemStorageTestSuite) TestGetAll() {
 	s.Require().NoError(err)
 	_, err = addTestURLToFile(uuid2, "short2", "full2")
 	s.Require().NoError(err)
-	resultURLs, err := fss.GetAll()
+	resultURLs, err := fss.GetAll(ctx)
 	s.Require().NoError(err)
 	exp := []entity.URL{
 		{
@@ -73,6 +76,7 @@ func (s *FileSystemStorageTestSuite) TestGetAll() {
 }
 
 func (s *FileSystemStorageTestSuite) TestGetByHash() {
+	ctx := context.Background()
 	_, err := addTestURLToFile(uuid.New(), "short1", "full")
 	s.Require().NoError(err)
 	u2, err := addTestURLToFile(uuid.New(), "short2", "full")
@@ -84,7 +88,7 @@ func (s *FileSystemStorageTestSuite) TestGetByHash() {
 	s.Require().NoError(err)
 	defer fss.Close()
 
-	url, err := fss.GetByHash("short2")
+	url, err := fss.GetByHash(ctx, "short2")
 	s.Require().NoError(err)
 
 	s.Require().Equal(&entity.URL{
@@ -96,6 +100,7 @@ func (s *FileSystemStorageTestSuite) TestGetByHash() {
 }
 
 func (s *FileSystemStorageTestSuite) TestGetByURL() {
+	ctx := context.Background()
 	_, err := addTestURLToFile(uuid.New(), "short", "full1")
 	s.Require().NoError(err)
 	u2, err := addTestURLToFile(uuid.New(), "short", "full2")
@@ -107,7 +112,7 @@ func (s *FileSystemStorageTestSuite) TestGetByURL() {
 	s.Require().NoError(err)
 	defer fss.Close()
 
-	url, err := fss.GetByURL("full2")
+	url, err := fss.GetByURL(ctx, "full2")
 	s.Require().NoError(err)
 
 	s.Require().Equal(&entity.URL{
@@ -119,6 +124,7 @@ func (s *FileSystemStorageTestSuite) TestGetByURL() {
 }
 
 func (s *FileSystemStorageTestSuite) TestAddBatch() {
+	ctx := context.Background()
 	fss, err := NewFileSystemStorage(fileName)
 	s.Require().NoError(err)
 	defer fss.Close()
@@ -131,7 +137,7 @@ func (s *FileSystemStorageTestSuite) TestAddBatch() {
 		},
 	}
 
-	totalCreated, err := fss.AddBatch(URLs)
+	totalCreated, err := fss.AddBatch(ctx, URLs)
 	s.Require().NoError(err)
 	s.Require().Equal(1, totalCreated)
 	os.Remove(fileName)

@@ -1,6 +1,6 @@
-create table url
+create table urls
 (
     id     uuid not null,
-    short  text,
-    original text
+    short  VARCHAR(8),
+    original VARCHAR(2048)
 );

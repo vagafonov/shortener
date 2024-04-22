@@ -12,10 +12,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vagafonov/shortener/internal/container"
-	"github.com/vagafonov/shortener/internal/contract"
+	"github.com/vagafonov/shortener/internal/customerror"
 	"github.com/vagafonov/shortener/internal/middleware"
 	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/internal/validate"
+	"github.com/vagafonov/shortener/pkg/entity"
 )
 
 type Application struct {
@@ -29,8 +30,9 @@ func NewApplication(cnt *container.Container) *Application {
 }
 
 func (a *Application) Serve() error {
+	ctx := context.Background()
 	if a.cnt.GetConfig().FileStoragePath != "" {
-		restored, err := a.cnt.GetServiceURL().RestoreURLs(a.cnt.GetConfig().FileStoragePath)
+		restored, err := a.cnt.GetServiceURL().RestoreURLs(ctx, a.cnt.GetConfig().FileStoragePath)
 		if err != nil {
 			a.cnt.GetLogger().Info().Msgf("cannot restore URLs: %s", err.Error())
 		}
@@ -78,10 +80,10 @@ func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request)
 
 		return
 	}
-	shortURL, err := a.cnt.GetServiceURL().MakeShortURL(string(body), a.cnt.GetConfig().ShortURLLength)
+	shortURL, err := a.cnt.GetServiceURL().MakeShortURL(req.Context(), string(body), a.cnt.GetConfig().ShortURLLength)
 	statusCode := http.StatusCreated
 	if err != nil {
-		if errors.Is(err, contract.ErrURLAlreadyExists) {
+		if errors.Is(err, customerror.ErrURLAlreadyExists) {
 			statusCode = http.StatusConflict
 		} else {
 			a.cnt.GetLogger().Err(err).Msg("cannot read body")
@@ -112,10 +114,14 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	shortURL, err := a.cnt.GetServiceURL().MakeShortURL(validatedRequest.URL, a.cnt.GetConfig().ShortURLLength)
+	shortURL, err := a.cnt.GetServiceURL().MakeShortURL(
+		req.Context(),
+		validatedRequest.URL,
+		a.cnt.GetConfig().ShortURLLength,
+	)
 	statusCode := http.StatusCreated
 	if err != nil {
-		if errors.Is(err, contract.ErrURLAlreadyExists) {
+		if errors.Is(err, customerror.ErrURLAlreadyExists) {
 			statusCode = http.StatusConflict
 		} else {
 			a.cnt.GetLogger().Err(err).Msg("cannot read body")
@@ -147,7 +153,7 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 }
 
 func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
-	shortURL, err := a.cnt.GetServiceURL().GetShortURL(chi.URLParam(req, "short_url"))
+	shortURL, err := a.cnt.GetServiceURL().GetShortURL(req.Context(), chi.URLParam(req, "short_url"))
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 
@@ -183,7 +189,7 @@ func (a *Application) shortenBatch(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	validatedRequest, err := validate.NewValidator(a.cnt.GetLogger()).ShortenBatchRequest(buf)
+	validatedRequest, err := validate.NewValidator(a.cnt.GetLogger()).ShortenBatchRequest(req.Context(), buf)
 	if err != nil {
 		if errors.Is(err, validate.ErrValidateEmpty) {
 			res.WriteHeader(http.StatusBadRequest)
@@ -196,9 +202,17 @@ func (a *Application) shortenBatch(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	URLs := make([]entity.URL, len(validatedRequest))
+	for k, v := range validatedRequest {
+		URLs[k] = entity.URL{
+			ID:       v.CorrelationID,
+			Short:    a.cnt.GetHasher().Hash(a.cnt.GetConfig().ShortURLLength),
+			Original: v.OriginalURL,
+		}
+	}
 	shortenBatchResponse, err := a.cnt.GetServiceURL().MakeShortURLBatch(
-		validatedRequest,
-		a.cnt.GetConfig().ShortURLLength,
+		req.Context(),
+		URLs,
 		a.cnt.GetConfig().ResultURL,
 	)
 	if err != nil {

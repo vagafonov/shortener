@@ -2,6 +2,7 @@ package validate
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 
@@ -30,7 +31,7 @@ func (v *validator) ShortenRequest(buf bytes.Buffer) *request.ShortenRequest {
 	return &shortenReq
 }
 
-func (v *validator) ShortenBatchRequest(buf bytes.Buffer) ([]request.ShortenBatchRequest, error) {
+func (v *validator) ShortenBatchRequest(ctx context.Context, buf bytes.Buffer) ([]request.ShortenBatchRequest, error) {
 	var req []request.ShortenBatchRequest
 	if err := json.Unmarshal(buf.Bytes(), &req); err != nil {
 		v.logger.Warn().Str("error", err.Error()).Str("request", buf.String()).Msg("cannot unmarshal shorten batch request")

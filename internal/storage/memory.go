@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/vagafonov/shortener/internal/contract"
+	"github.com/vagafonov/shortener/internal/customerror"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
@@ -17,7 +18,7 @@ func NewMemoryStorage() contract.Storage {
 	}
 }
 
-func (s *memoryStorage) GetByHash(key string) (*entity.URL, error) {
+func (s *memoryStorage) GetByHash(ctx context.Context, key string) (*entity.URL, error) {
 	if v, ok := s.storage[key]; ok {
 		return &entity.URL{
 			Short:    key,
@@ -28,7 +29,7 @@ func (s *memoryStorage) GetByHash(key string) (*entity.URL, error) {
 	return nil, nil //nolint:nilnil
 }
 
-func (s *memoryStorage) GetByURL(val string) (*entity.URL, error) {
+func (s *memoryStorage) GetByURL(ctx context.Context, val string) (*entity.URL, error) {
 	for k, v := range s.storage {
 		if val == v {
 			return &entity.URL{
@@ -41,10 +42,10 @@ func (s *memoryStorage) GetByURL(val string) (*entity.URL, error) {
 	return nil, nil //nolint:nilnil
 }
 
-func (s *memoryStorage) Add(hash string, url string) (*entity.URL, error) {
+func (s *memoryStorage) Add(ctx context.Context, hash string, url string) (*entity.URL, error) {
 	for k, v := range s.storage {
 		if k == hash || v == url {
-			return nil, contract.ErrAlreadyExistsInStorage
+			return nil, customerror.ErrAlreadyExistsInStorage
 		}
 	}
 	s.storage[hash] = url
@@ -55,7 +56,7 @@ func (s *memoryStorage) Add(hash string, url string) (*entity.URL, error) {
 	}, nil
 }
 
-func (s *memoryStorage) GetAll() ([]entity.URL, error) {
+func (s *memoryStorage) GetAll(ctx context.Context) ([]entity.URL, error) {
 	res := make([]entity.URL, len(s.storage))
 	i := 0
 	for k, v := range s.storage {
@@ -69,7 +70,7 @@ func (s *memoryStorage) GetAll() ([]entity.URL, error) {
 	return res, nil
 }
 
-func (s *memoryStorage) AddBatch(b []entity.URL) (int, error) {
+func (s *memoryStorage) AddBatch(ctx context.Context, b []entity.URL) (int, error) {
 	for _, v := range b {
 		s.storage[v.Short] = v.Original
 	}

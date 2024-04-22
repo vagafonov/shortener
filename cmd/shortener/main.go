@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/rs/zerolog"
 	"github.com/vagafonov/shortener/internal/application"
 	"github.com/vagafonov/shortener/internal/config"
 	"github.com/vagafonov/shortener/internal/container"
@@ -22,7 +23,6 @@ type options struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
-//nolint:funlen
 func main() {
 	opt := &options{
 		ServerURL:       "",
@@ -40,11 +40,7 @@ func main() {
 	var fstorage contract.Storage
 
 	if cfg.DatabaseDSN != "" {
-		if db, err = createConnect(cfg.DatabaseDSN); err != nil {
-			lr.Err(err).Send()
-		}
-		err := runMigrations(db)
-
+		db, err := prepareDB(lr, cfg)
 		if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 			lr.Err(err).Send()
 		}
@@ -70,7 +66,6 @@ func main() {
 	if err != nil {
 		lr.Err(err).Send()
 	}
-
 	cnt.SetBackupStorage(backupStorage)
 
 	servURL, err := service.ServiceURLFactory(cnt, "real")
@@ -89,4 +84,13 @@ func main() {
 	if err := app.Serve(); err != nil {
 		lr.Err(err).Send()
 	}
+}
+
+func prepareDB(lr *zerolog.Logger, cfg *config.Config) (*sql.DB, error) {
+	db, err := createConnect(cfg.DatabaseDSN)
+	if err != nil {
+		lr.Err(err).Send()
+	}
+
+	return db, runMigrations(db)
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"log"
 	"testing"
 
@@ -55,6 +56,7 @@ func (s *ServiceDBSuite) SetupSuite() {
 }
 
 func (s *ServiceDBSuite) TestGetShortURL() {
+	ctx := context.Background()
 	s.Run("get short url successfully", func() {
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
@@ -64,14 +66,14 @@ func (s *ServiceDBSuite) TestGetShortURL() {
 			Short:    "****",
 			Original: "some_url",
 		}
-		m.EXPECT().GetByHash("some_url").Return(expEntity, nil)
+		m.EXPECT().GetByHash(ctx, "some_url").Return(expEntity, nil)
 		s.service = NewURLService(
 			s.cnt.GetLogger(),
 			m,
 			s.cnt.GetBackupStorage(),
 			s.cnt.GetHasher(),
 		)
-		e, err := s.service.GetShortURL("some_url")
+		e, err := s.service.GetShortURL(ctx, "some_url")
 		s.Require().NoError(err)
 		s.Require().Equal(expEntity, e)
 	})
@@ -79,6 +81,7 @@ func (s *ServiceDBSuite) TestGetShortURL() {
 
 func (s *ServiceDBSuite) TestMakeShortURL() {
 	s.Run("make short url with empty storage", func() {
+		ctx := context.Background()
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
 		m := storage.NewMockStorage(ctrl)
@@ -87,8 +90,8 @@ func (s *ServiceDBSuite) TestMakeShortURL() {
 			Short:    "*****",
 			Original: "some_url",
 		}
-		m.EXPECT().GetByURL("some_url").Return(nil, nil)
-		m.EXPECT().Add("*****", "some_url").Return(expEntity, nil)
+		m.EXPECT().GetByURL(ctx, "some_url").Return(nil, nil)
+		m.EXPECT().Add(ctx, "*****", "some_url").Return(expEntity, nil)
 		s.service = NewURLService(
 			s.cnt.GetLogger(),
 			m,
@@ -96,12 +99,13 @@ func (s *ServiceDBSuite) TestMakeShortURL() {
 			s.cnt.GetHasher(),
 		)
 
-		e, err := s.service.MakeShortURL("some_url", 5)
+		e, err := s.service.MakeShortURL(ctx, "some_url", 5)
 		s.Require().NoError(err)
 		s.Require().Equal(expEntity, e)
 	})
 
 	s.Run("make short url with already exist urls", func() {
+		ctx := context.Background()
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
 		m := storage.NewMockStorage(ctrl)
@@ -110,7 +114,7 @@ func (s *ServiceDBSuite) TestMakeShortURL() {
 			Short:    "*****",
 			Original: "some_url",
 		}
-		m.EXPECT().GetByURL("some_url").Return(expEntity, nil)
+		m.EXPECT().GetByURL(ctx, "some_url").Return(expEntity, nil)
 		s.service = NewURLService(
 			s.cnt.GetLogger(),
 			m,
@@ -118,13 +122,14 @@ func (s *ServiceDBSuite) TestMakeShortURL() {
 			s.cnt.GetHasher(),
 		)
 
-		e, err := s.service.MakeShortURL("some_url", 5)
+		e, err := s.service.MakeShortURL(ctx, "some_url", 5)
 		s.Require().Error(err)
 		s.Require().Equal(expEntity, e)
 	})
 }
 
 func (s *ServiceDBSuite) TestRestoreURLs() {
+	ctx := context.Background()
 	s.Run("restore all urls", func() {
 		expEntity := &entity.URL{
 			UUID:     uuid.UUID{},
@@ -136,7 +141,7 @@ func (s *ServiceDBSuite) TestRestoreURLs() {
 		defer ctrl.Finish()
 		m := storage.NewMockStorage(ctrl)
 
-		m.EXPECT().Add("*****", "some_url").Return(expEntity, nil)
+		m.EXPECT().Add(ctx, "*****", "some_url").Return(expEntity, nil)
 		s.service = NewURLService(
 			s.cnt.GetLogger(),
 			m,
@@ -144,13 +149,15 @@ func (s *ServiceDBSuite) TestRestoreURLs() {
 			s.cnt.GetHasher(),
 		)
 
-		totalRestored, err := s.service.RestoreURLs(fileName)
+		totalRestored, err := s.service.RestoreURLs(ctx, fileName)
 		s.Require().NoError(err)
 		s.Require().Equal(1, totalRestored)
 	})
 }
 
+//nolint:funlen
 func (s *ServiceDBSuite) TestAddBatch() {
+	ctx := context.Background()
 	s.Run("add batch", func() {
 		/*
 			expEntity := &entity.URL{
@@ -166,16 +173,18 @@ func (s *ServiceDBSuite) TestAddBatch() {
 
 		newEntities := []entity.URL{
 			{
+				ID:       "1",
 				Short:    "*****",
 				Original: "aaa",
 			},
 			{
+				ID:       "2",
 				Short:    "*****",
 				Original: "bbb",
 			},
 		}
 
-		m.EXPECT().AddBatch(newEntities).Return(2, nil)
+		m.EXPECT().AddBatch(ctx, newEntities).Return(2, nil)
 		s.service = NewURLService(
 			s.cnt.GetLogger(),
 			m,
@@ -193,7 +202,16 @@ func (s *ServiceDBSuite) TestAddBatch() {
 				OriginalURL:   "bbb",
 			},
 		}
-		resp, err := s.service.MakeShortURLBatch(req, 5, "url")
+
+		URLs := make([]entity.URL, len(req))
+		for k, v := range req {
+			URLs[k] = entity.URL{
+				ID:       v.CorrelationID,
+				Short:    s.cnt.GetHasher().Hash(5),
+				Original: v.OriginalURL,
+			}
+		}
+		resp, err := s.service.MakeShortURLBatch(ctx, URLs, "url")
 		s.Require().NoError(err)
 		respExp := []response.ShortenBatchResponse{
 			{
