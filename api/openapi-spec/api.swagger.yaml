@@ -48,4 +48,34 @@ paths:
       responses:
         '200':
           description: ''
+  /api/shorten/batch:
+    post:
+      tags:
+        - default
+      summary: Api shorten batch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example: |-
+                [
+                    {
+                        "correlation_id": "<строковый идентификатор>",
+                        "original_url": "<URL для сокращения>"
+                    },
+                        {
+                        "correlation_id": "<строковый идентификатор>",
+                        "original_url": "<URL для сокращения>"
+                    },
+                        {
+                        "correlation_id": "<строковый идентификатор>",
+                        "original_url": "<URL для сокращения>"
+                    },
+                ]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: { }
 tags: []

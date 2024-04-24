@@ -11,11 +11,14 @@ import (
 func (mw *middleware) WithCompress(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		originalWriter := w
+
+		// проверяем, что клиент умеет получать от сервера сжатые данные в формате gzip
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		gzipContents := map[string]struct{}{
 			"application/json": {},
 			"text/html":        {},
+			"text/plain":       {},
 		}
 
 		_, foundGzipFormat := gzipContents[r.Header.Get("Content-Type")]

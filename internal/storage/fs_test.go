@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"testing"
@@ -24,11 +25,12 @@ func (s *FileSystemStorageTestSuite) SetupSuite() {
 }
 
 func (s *FileSystemStorageTestSuite) TestAdd() {
+	ctx := context.Background()
 	fss, err := NewFileSystemStorage(fileName)
 	s.Require().NoError(err)
 	defer fss.Close()
 
-	resultURL, err := fss.Add("1", "2")
+	resultURL, err := fss.Add(ctx, "1", "2")
 	s.Require().NoError(err)
 	data, err := os.ReadFile(fileName)
 	s.Require().NoError(err)
@@ -37,14 +39,15 @@ func (s *FileSystemStorageTestSuite) TestAdd() {
 	s.Require().NoError(err)
 
 	s.Equal(entity.URL{
-		UUID:  resultURL.UUID,
-		Short: "1",
-		Full:  "2",
+		UUID:     resultURL.UUID,
+		Short:    "1",
+		Original: "2",
 	}, *urlActual)
 	os.Remove(fileName)
 }
 
 func (s *FileSystemStorageTestSuite) TestGetAll() {
+	ctx := context.Background()
 	fss, err := NewFileSystemStorage(fileName)
 	s.Require().NoError(err)
 	defer fss.Close()
@@ -54,25 +57,26 @@ func (s *FileSystemStorageTestSuite) TestGetAll() {
 	s.Require().NoError(err)
 	_, err = addTestURLToFile(uuid2, "short2", "full2")
 	s.Require().NoError(err)
-	resultUrls, err := fss.GetAll()
+	resultURLs, err := fss.GetAll(ctx)
 	s.Require().NoError(err)
 	exp := []entity.URL{
 		{
-			UUID:  uuid1,
-			Short: "short1",
-			Full:  "full1",
+			UUID:     uuid1,
+			Short:    "short1",
+			Original: "full1",
 		},
 		{
-			UUID:  uuid2,
-			Short: "short2",
-			Full:  "full2",
+			UUID:     uuid2,
+			Short:    "short2",
+			Original: "full2",
 		},
 	}
-	s.Require().Equal(exp, resultUrls)
+	s.Require().Equal(exp, resultURLs)
 	os.Remove(fileName)
 }
 
 func (s *FileSystemStorageTestSuite) TestGetByHash() {
+	ctx := context.Background()
 	_, err := addTestURLToFile(uuid.New(), "short1", "full")
 	s.Require().NoError(err)
 	u2, err := addTestURLToFile(uuid.New(), "short2", "full")
@@ -84,18 +88,19 @@ func (s *FileSystemStorageTestSuite) TestGetByHash() {
 	s.Require().NoError(err)
 	defer fss.Close()
 
-	url, err := fss.GetByHash("short2")
+	url, err := fss.GetByHash(ctx, "short2")
 	s.Require().NoError(err)
 
 	s.Require().Equal(&entity.URL{
-		UUID:  u2.UUID,
-		Short: "short2",
-		Full:  "full",
+		UUID:     u2.UUID,
+		Short:    "short2",
+		Original: "full",
 	}, url)
 	os.Remove(fileName)
 }
 
-func (s *FileSystemStorageTestSuite) TestGetByUrl() {
+func (s *FileSystemStorageTestSuite) TestGetByURL() {
+	ctx := context.Background()
 	_, err := addTestURLToFile(uuid.New(), "short", "full1")
 	s.Require().NoError(err)
 	u2, err := addTestURLToFile(uuid.New(), "short", "full2")
@@ -107,14 +112,34 @@ func (s *FileSystemStorageTestSuite) TestGetByUrl() {
 	s.Require().NoError(err)
 	defer fss.Close()
 
-	url, err := fss.GetByURL("full2")
+	url, err := fss.GetByURL(ctx, "full2")
 	s.Require().NoError(err)
 
 	s.Require().Equal(&entity.URL{
-		UUID:  u2.UUID,
-		Short: "short",
-		Full:  "full2",
+		UUID:     u2.UUID,
+		Short:    "short",
+		Original: "full2",
 	}, url)
+	os.Remove(fileName)
+}
+
+func (s *FileSystemStorageTestSuite) TestAddBatch() {
+	ctx := context.Background()
+	fss, err := NewFileSystemStorage(fileName)
+	s.Require().NoError(err)
+	defer fss.Close()
+
+	URLs := []entity.URL{
+		{
+			UUID:     uuid.UUID{},
+			Short:    "",
+			Original: "",
+		},
+	}
+
+	totalCreated, err := fss.AddBatch(ctx, URLs)
+	s.Require().NoError(err)
+	s.Require().Equal(1, totalCreated)
 	os.Remove(fileName)
 }
 
@@ -125,9 +150,9 @@ func addTestURLToFile(id uuid.UUID, shortURL string, fullURL string) (*entity.UR
 	}
 	defer f.Close()
 	urlEntity := &entity.URL{
-		UUID:  id,
-		Short: shortURL,
-		Full:  fullURL,
+		UUID:     id,
+		Short:    shortURL,
+		Original: fullURL,
 	}
 	encoder := json.NewEncoder(f)
 
