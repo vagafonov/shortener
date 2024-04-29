@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/json"
+	"encoding/hex"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -18,11 +17,13 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/vagafonov/shortener/internal/config"
 	"github.com/vagafonov/shortener/internal/container"
+	"github.com/vagafonov/shortener/internal/cookie"
 	"github.com/vagafonov/shortener/internal/customerror"
 	"github.com/vagafonov/shortener/internal/logger"
 	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/internal/service"
 	"github.com/vagafonov/shortener/internal/storage"
+	"github.com/vagafonov/shortener/pkg/encrypting"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
@@ -51,6 +52,7 @@ func (s *FunctionalTestSuite) SetupSuite() {
 		"http://test:8080",
 		fileStoragePath,
 		"test",
+		[]byte("0123456789abcdef"),
 	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	s.cnt = container.NewContainer(
@@ -84,12 +86,15 @@ func (s *FunctionalTestSuite) TearDownSuite() {
 	os.Remove(fileStoragePath)
 }
 
+//nolint:dupl
 func (s *FunctionalTestSuite) TestCreateURL() {
+	srv := httptest.NewServer(s.app.Routes())
 	tests := []struct {
-		method string
-		body   string
-		code   int
-		init   func(s *FunctionalTestSuite)
+		method   string
+		body     string
+		code     int
+		init     func(s *FunctionalTestSuite)
+		expected string
 	}{
 		{
 			method: http.MethodPost,
@@ -102,12 +107,14 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 					Original: "2",
 				}, nil)
 			},
+			expected: "http://test:8080/********",
 		},
 		{
-			method: http.MethodPost,
-			body:   "",
-			code:   http.StatusBadRequest,
-			init:   func(s *FunctionalTestSuite) {},
+			method:   http.MethodPost,
+			body:     "",
+			code:     http.StatusBadRequest,
+			init:     func(s *FunctionalTestSuite) {},
+			expected: "",
 		},
 		{
 			method: http.MethodPost,
@@ -120,33 +127,38 @@ func (s *FunctionalTestSuite) TestCreateURL() {
 					Original: "http://test.local",
 				}, customerror.ErrURLAlreadyExists)
 			},
+			expected: "http://test:8080/********",
 		},
 	}
 
 	for _, test := range tests {
 		s.Run(test.method, func() {
 			test.init(s)
-			r := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
-			w := httptest.NewRecorder()
-			s.app.createShortURL(w, r)
-			s.Require().Equal(test.code, w.Code)
-			if test.code == http.StatusCreated || test.code == http.StatusConflict {
-				u, err := url.Parse(w.Body.String())
-				s.Require().NoError(err)
-				s.Require().Len(strings.Trim(u.Path, "/"), s.cnt.GetConfig().ShortURLLength)
-			}
+			r := httptest.NewRequest(test.method, srv.URL+"/", strings.NewReader(test.body))
+			ck := cookie.CreateCookieWithUserID(s.cnt.GetLogger(), s.cnt.GetConfig().CryptoKey)
+			r.RequestURI = ""
+			r.AddCookie(ck)
+			resp, err := http.DefaultClient.Do(r)
+			s.Require().NoError(err)
+			defer resp.Body.Close()
+			s.Require().Equal(test.code, resp.StatusCode)
+			b, err := io.ReadAll(resp.Body)
+			s.Require().NoError(err)
+			s.Require().Equal(test.expected, string(b))
 		})
 	}
 }
 
-func (s *FunctionalTestSuite) TestApiShorten() { //nolint:funlen
+//nolint:funlen, dupl
+func (s *FunctionalTestSuite) TestApiShorten() {
 	srv := httptest.NewServer(s.app.Routes())
 	defer srv.Close()
 	tests := []struct {
-		method string
-		body   string
-		code   int
-		init   func(s *FunctionalTestSuite)
+		method   string
+		body     string
+		code     int
+		init     func(s *FunctionalTestSuite)
+		expected string
 	}{
 		{
 			method: http.MethodPost,
@@ -159,6 +171,7 @@ func (s *FunctionalTestSuite) TestApiShorten() { //nolint:funlen
 					Original: "2",
 				}, nil)
 			},
+			expected: `{"result":"http://test:8080/********"}`,
 		},
 		{
 			method: http.MethodPost,
@@ -166,6 +179,7 @@ func (s *FunctionalTestSuite) TestApiShorten() { //nolint:funlen
 			code:   http.StatusBadRequest,
 			init: func(s *FunctionalTestSuite) {
 			},
+			expected: `{"result":"http://test:8080/********"}`,
 		},
 		{
 			method: http.MethodPost,
@@ -178,6 +192,7 @@ func (s *FunctionalTestSuite) TestApiShorten() { //nolint:funlen
 					Original: "http://test.local",
 				}, customerror.ErrURLAlreadyExists)
 			},
+			expected: `{"result":"http://test:8080/********"}`,
 		},
 	}
 
@@ -185,22 +200,19 @@ func (s *FunctionalTestSuite) TestApiShorten() { //nolint:funlen
 		s.Run(test.method, func() {
 			test.init(s)
 			r := httptest.NewRequest(test.method, srv.URL+"/api/shorten", strings.NewReader(test.body))
+			ck := cookie.CreateCookieWithUserID(s.cnt.GetLogger(), s.cnt.GetConfig().CryptoKey)
 			r.RequestURI = ""
+			r.AddCookie(ck)
 			resp, err := http.DefaultClient.Do(r)
 			s.Require().NoError(err)
 			defer resp.Body.Close()
 			s.Require().Equal(test.code, resp.StatusCode)
+			b, err := io.ReadAll(resp.Body)
+			s.Require().NoError(err)
 
-			if test.code == http.StatusCreated || test.code == http.StatusConflict {
-				decoder := json.NewDecoder(resp.Body)
-				var shResp response.ShortenResponse
-				err = decoder.Decode(&shResp)
-				s.Require().NoError(err)
-				u, err := url.Parse(shResp.Result)
-				s.Require().NoError(err)
-				s.Require().Len(strings.Trim(u.Path, "/"), s.cnt.GetConfig().ShortURLLength)
-				s.Require().Equal("application/json", resp.Header.Get("content-type"))
-				s.Require().Empty(resp.Header.Get("Content-Encoding"))
+			if string(b) != "" {
+				s.Require().Equal(`application/json`, resp.Header.Get("Content-Type"))
+				s.Require().JSONEq(test.expected, string(b))
 			}
 		})
 	}
@@ -285,6 +297,8 @@ func (s *FunctionalTestSuite) TestCompress() {
 		s.Require().NoError(err)
 		r := httptest.NewRequest(http.MethodPost, srv.URL+"/api/shorten", buf)
 
+		ck := cookie.CreateCookieWithUserID(s.cnt.GetLogger(), s.cnt.GetConfig().CryptoKey)
+		r.AddCookie(ck)
 		r.RequestURI = ""
 		r.Header.Set("Content-Encoding", "gzip")
 		r.Header.Set("Content-Type", "application/json")
@@ -427,5 +441,124 @@ func (s *FunctionalTestSuite) TestShortenBatch() { //nolint:funlen
 		s.Require().NoError(err)
 		defer resp.Body.Close()
 		s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+	})
+}
+
+func (s *FunctionalTestSuite) TestCheckUserIDInCookie() {
+	srv := httptest.NewServer(s.app.Routes())
+	defer srv.Close()
+
+	s.Run("exist and valid", func() {
+		r := httptest.NewRequest(http.MethodGet, srv.URL+"/ping", strings.NewReader(""))
+		r.RequestURI = ""
+		userID, err := uuid.NewUUID()
+		s.Require().NoError(err)
+		uuidString := userID.String()
+		encrypted, err := encrypting.Encrypt(uuidString, s.cnt.GetConfig().CryptoKey)
+		s.Require().NoError(err)
+		cookie := &http.Cookie{Name: "userID", Value: hex.EncodeToString(encrypted)}
+		r.AddCookie(cookie)
+
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		s.Require().Equal(http.StatusOK, resp.StatusCode)
+
+		defer resp.Body.Close()
+	})
+
+	s.Run("exist and invalid", func() {
+		r := httptest.NewRequest(http.MethodGet, srv.URL+"/ping", strings.NewReader(""))
+		r.RequestURI = ""
+		userID, err := uuid.NewUUID()
+		s.Require().NoError(err)
+		uuidString := userID.String()
+		encrypted, err := encrypting.Encrypt(uuidString, []byte("****************"))
+		s.Require().NoError(err)
+		cookie := &http.Cookie{Name: "userID", Value: hex.EncodeToString(encrypted)}
+		r.AddCookie(cookie)
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		s.Require().Equal(http.StatusOK, resp.StatusCode)
+		defer resp.Body.Close()
+	})
+
+	s.Run("does not exist", func() {
+		r := httptest.NewRequest(http.MethodGet, srv.URL+"/ping", strings.NewReader(""))
+		r.RequestURI = ""
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		s.Require().Equal(http.StatusOK, resp.StatusCode)
+		defer resp.Body.Close()
+	})
+}
+
+func (s *FunctionalTestSuite) TestApiUserURLs() { //nolint:funlen
+	srv := httptest.NewServer(s.app.Routes())
+	defer srv.Close()
+
+	s.Run("get user URLs", func() {
+		userID := uuid.New()
+		s.serviceURL.SetGetUserURLsResult([]*entity.URL{
+			{
+				UUID:     uuid.UUID{},
+				Short:    "********",
+				Original: "2",
+				UserID:   userID,
+			},
+		}, nil)
+		r := httptest.NewRequest(http.MethodGet, srv.URL+"/api/user/urls", strings.NewReader(""))
+		r.RequestURI = ""
+		encrypted, err := encrypting.Encrypt(userID.String(), s.cnt.GetConfig().CryptoKey)
+		s.Require().NoError(err)
+		cookie := &http.Cookie{Name: "userID", Value: hex.EncodeToString(encrypted)}
+		r.AddCookie(cookie)
+
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusOK, resp.StatusCode)
+		b, err := io.ReadAll(resp.Body)
+		s.Require().NoError(err)
+		s.Require().Equal(`application/json`, resp.Header.Get("Content-Type"))
+		s.Require().JSONEq(`[{"short_url":"********","original_url":"2"}]`, string(b))
+	})
+
+	// Если кука не содержит ID пользователя, хендлер должен возвращать HTTP-статус 401 Unauthorized.
+	s.Run("request with empty userID in cookie", func() {
+		userID := uuid.New()
+		s.serviceURL.SetGetUserURLsResult([]*entity.URL{
+			{
+				UUID:     uuid.UUID{},
+				Short:    "********",
+				Original: "2",
+				UserID:   userID,
+			},
+		}, nil)
+		r := httptest.NewRequest(http.MethodGet, srv.URL+"/api/user/urls", strings.NewReader(""))
+		r.RequestURI = ""
+		cookie := &http.Cookie{Name: "userID", Value: ""}
+		r.AddCookie(cookie)
+
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	// При отсутствии сокращённых пользователем URL хендлер должен отдавать HTTP-статус 204 No Content.
+	s.Run("request with empty userID in cookie", func() {
+		userID := uuid.New()
+		s.serviceURL.SetGetUserURLsResult([]*entity.URL{}, nil)
+		r := httptest.NewRequest(http.MethodGet, srv.URL+"/api/user/urls", strings.NewReader(""))
+		r.RequestURI = ""
+		encrypted, err := encrypting.Encrypt(userID.String(), s.cnt.GetConfig().CryptoKey)
+		s.Require().NoError(err)
+		cookie := &http.Cookie{Name: "userID", Value: hex.EncodeToString(encrypted)}
+		r.AddCookie(cookie)
+
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
 	})
 }

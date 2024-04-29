@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	uuid "github.com/google/uuid"
 	entity "github.com/vagafonov/shortener/pkg/entity"
 )
 
@@ -36,22 +37,22 @@ func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockStorage) Add(ctx context.Context, hash, url string) (*entity.URL, error) {
+func (m *MockStorage) Add(ctx context.Context, hash, url string, userID uuid.UUID) (*entity.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Add", ctx, hash, url)
+	ret := m.ctrl.Call(m, "Add", ctx, hash, url, userID)
 	ret0, _ := ret[0].(*entity.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Add indicates an expected call of Add.
-func (mr *MockStorageMockRecorder) Add(ctx, hash, url interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) Add(ctx, hash, url, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockStorage)(nil).Add), ctx, hash, url)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockStorage)(nil).Add), ctx, hash, url, userID)
 }
 
 // AddBatch mocks base method.
-func (m *MockStorage) AddBatch(ctx context.Context, URLs []entity.URL) (int, error) {
+func (m *MockStorage) AddBatch(ctx context.Context, URLs []*entity.URL) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddBatch", ctx, URLs)
 	ret0, _ := ret[0].(int)
@@ -80,10 +81,10 @@ func (mr *MockStorageMockRecorder) Close() *gomock.Call {
 }
 
 // GetAll mocks base method.
-func (m *MockStorage) GetAll(ctx context.Context) ([]entity.URL, error) {
+func (m *MockStorage) GetAll(ctx context.Context) ([]*entity.URL, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", ctx)
-	ret0, _ := ret[0].([]entity.URL)
+	ret0, _ := ret[0].([]*entity.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -92,6 +93,21 @@ func (m *MockStorage) GetAll(ctx context.Context) ([]entity.URL, error) {
 func (mr *MockStorageMockRecorder) GetAll(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockStorage)(nil).GetAll), ctx)
+}
+
+// GetAllURLsByUser mocks base method.
+func (m *MockStorage) GetAllURLsByUser(ctx context.Context, userID uuid.UUID, baseURL string) ([]*entity.URL, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAllURLsByUser", ctx, userID, baseURL)
+	ret0, _ := ret[0].([]*entity.URL)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllURLsByUser indicates an expected call of GetAllURLsByUser.
+func (mr *MockStorageMockRecorder) GetAllURLsByUser(ctx, userID, baseURL interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllURLsByUser", reflect.TypeOf((*MockStorage)(nil).GetAllURLsByUser), ctx, userID, baseURL)
 }
 
 // GetByHash mocks base method.

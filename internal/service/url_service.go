@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"github.com/vagafonov/shortener/internal/contract"
 	"github.com/vagafonov/shortener/internal/customerror"
@@ -34,7 +35,7 @@ func NewURLService(
 	}
 }
 
-func (s *urlService) MakeShortURL(ctx context.Context, url string, length int) (*entity.URL, error) {
+func (s *urlService) MakeShortURL(ctx context.Context, url string, length int, userID uuid.UUID) (*entity.URL, error) {
 	shortURL, err := s.mainStorage.GetByURL(ctx, url)
 	if err != nil {
 		return nil, err
@@ -43,11 +44,11 @@ func (s *urlService) MakeShortURL(ctx context.Context, url string, length int) (
 		return shortURL, customerror.ErrURLAlreadyExists
 	}
 	hashShortURL := s.hasher.Hash(length)
-	shortURL, err = s.mainStorage.Add(ctx, hashShortURL, url)
+	shortURL, err = s.mainStorage.Add(ctx, hashShortURL, url, userID)
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.backupStorage.Add(ctx, hashShortURL, url)
+	_, err = s.backupStorage.Add(ctx, hashShortURL, url, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func (s *urlService) RestoreURLs(ctx context.Context, fileName string) (int, err
 
 	for _, v := range URLs {
 		// TODO handle id
-		if _, err = s.mainStorage.Add(ctx, v.Short, v.Original); err != nil {
+		if _, err = s.mainStorage.Add(ctx, v.Short, v.Original, v.UserID); err != nil {
 			return 0, fmt.Errorf("failed to add URL: %w", err)
 		}
 	}
@@ -81,7 +82,7 @@ func (s *urlService) RestoreURLs(ctx context.Context, fileName string) (int, err
 
 func (s *urlService) MakeShortURLBatch(
 	ctx context.Context,
-	urls []entity.URL,
+	urls []*entity.URL,
 	baseURL string,
 ) ([]response.ShortenBatchResponse, error) {
 	totalCreated, err := s.mainStorage.AddBatch(ctx, urls)
@@ -104,4 +105,8 @@ func (s *urlService) MakeShortURLBatch(
 	}
 
 	return resp, nil
+}
+
+func (s *urlService) GetUserURLs(ctx context.Context, userID uuid.UUID, baseURL string) ([]*entity.URL, error) {
+	return s.mainStorage.GetAllURLsByUser(ctx, userID, baseURL)
 }

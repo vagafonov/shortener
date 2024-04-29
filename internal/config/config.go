@@ -11,6 +11,7 @@ type Config struct {
 	LogLevel        zerolog.Level
 	FileStoragePath string
 	DatabaseDSN     string
+	CryptoKey       []byte
 }
 
 func NewConfig(
@@ -18,6 +19,7 @@ func NewConfig(
 	resultURL string,
 	fileStoragePath string,
 	databaseDSN string,
+	cryptoKey []byte,
 ) *Config {
 	return &Config{
 		ServerURL:       serverURL,
@@ -26,5 +28,6 @@ func NewConfig(
 		LogLevel:        zerolog.DebugLevel,
 		FileStoragePath: fileStoragePath,
 		DatabaseDSN:     databaseDSN,
+		CryptoKey:       cryptoKey,
 	}
 }

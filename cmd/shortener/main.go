@@ -32,7 +32,7 @@ func main() {
 	parseFlags(opt)
 	parseEnv(opt)
 
-	cfg := config.NewConfig(opt.ServerURL, opt.ResultURL, opt.FileStoragePath, opt.DatabaseDSN)
+	cfg := config.NewConfig(opt.ServerURL, opt.ResultURL, opt.FileStoragePath, opt.DatabaseDSN, []byte("0123456789abcdef"))
 	lr := logger.CreateLogger(cfg.LogLevel)
 	var strg contract.Storage
 	var err error

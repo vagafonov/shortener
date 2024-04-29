@@ -30,7 +30,8 @@ func (s *FileSystemStorageTestSuite) TestAdd() {
 	s.Require().NoError(err)
 	defer fss.Close()
 
-	resultURL, err := fss.Add(ctx, "1", "2")
+	userID := uuid.Must(uuid.NewUUID())
+	resultURL, err := fss.Add(ctx, "1", "2", userID)
 	s.Require().NoError(err)
 	data, err := os.ReadFile(fileName)
 	s.Require().NoError(err)
@@ -42,6 +43,7 @@ func (s *FileSystemStorageTestSuite) TestAdd() {
 		UUID:     resultURL.UUID,
 		Short:    "1",
 		Original: "2",
+		UserID:   userID,
 	}, *urlActual)
 	os.Remove(fileName)
 }
@@ -51,37 +53,43 @@ func (s *FileSystemStorageTestSuite) TestGetAll() {
 	fss, err := NewFileSystemStorage(fileName)
 	s.Require().NoError(err)
 	defer fss.Close()
-	uuid1 := uuid.New()
-	uuid2 := uuid.New()
-	_, err = addTestURLToFile(uuid1, "short1", "full1")
+	entityURL := &entity.URL{
+		ID:       "123456",
+		UUID:     uuid.New(),
+		Short:    "short1",
+		Original: "full1",
+		UserID:   uuid.New(),
+	}
+	_, err = addTestURLToFile(entityURL)
 	s.Require().NoError(err)
-	_, err = addTestURLToFile(uuid2, "short2", "full2")
-	s.Require().NoError(err)
+
 	resultURLs, err := fss.GetAll(ctx)
 	s.Require().NoError(err)
-	exp := []entity.URL{
-		{
-			UUID:     uuid1,
-			Short:    "short1",
-			Original: "full1",
-		},
-		{
-			UUID:     uuid2,
-			Short:    "short2",
-			Original: "full2",
-		},
-	}
+	exp := []*entity.URL{entityURL}
 	s.Require().Equal(exp, resultURLs)
 	os.Remove(fileName)
 }
 
+//nolint:dupl
 func (s *FileSystemStorageTestSuite) TestGetByHash() {
 	ctx := context.Background()
-	_, err := addTestURLToFile(uuid.New(), "short1", "full")
+	_, err := addTestURLToFile(&entity.URL{
+		ID:       "1",
+		UUID:     uuid.New(),
+		Short:    "short1",
+		Original: "full1",
+		UserID:   uuid.New(),
+	})
 	s.Require().NoError(err)
-	u2, err := addTestURLToFile(uuid.New(), "short2", "full")
-	s.Require().NoError(err)
-	_, err = addTestURLToFile(uuid.New(), "short3", "full")
+
+	entityURL := &entity.URL{
+		ID:       "2",
+		UUID:     uuid.New(),
+		Short:    "short2",
+		Original: "full2",
+		UserID:   uuid.New(),
+	}
+	_, err = addTestURLToFile(entityURL)
 	s.Require().NoError(err)
 
 	fss, err := NewFileSystemStorage(fileName)
@@ -91,21 +99,30 @@ func (s *FileSystemStorageTestSuite) TestGetByHash() {
 	url, err := fss.GetByHash(ctx, "short2")
 	s.Require().NoError(err)
 
-	s.Require().Equal(&entity.URL{
-		UUID:     u2.UUID,
-		Short:    "short2",
-		Original: "full",
-	}, url)
+	s.Require().Equal(entityURL, url)
 	os.Remove(fileName)
 }
 
+//nolint:dupl
 func (s *FileSystemStorageTestSuite) TestGetByURL() {
 	ctx := context.Background()
-	_, err := addTestURLToFile(uuid.New(), "short", "full1")
+	_, err := addTestURLToFile(&entity.URL{
+		ID:       "1",
+		UUID:     uuid.New(),
+		Short:    "short1",
+		Original: "full1",
+		UserID:   uuid.New(),
+	})
 	s.Require().NoError(err)
-	u2, err := addTestURLToFile(uuid.New(), "short", "full2")
-	s.Require().NoError(err)
-	_, err = addTestURLToFile(uuid.New(), "short", "full3")
+
+	entityURL := &entity.URL{
+		ID:       "2",
+		UUID:     uuid.New(),
+		Short:    "short2",
+		Original: "full2",
+		UserID:   uuid.New(),
+	}
+	_, err = addTestURLToFile(entityURL)
 	s.Require().NoError(err)
 
 	fss, err := NewFileSystemStorage(fileName)
@@ -115,11 +132,7 @@ func (s *FileSystemStorageTestSuite) TestGetByURL() {
 	url, err := fss.GetByURL(ctx, "full2")
 	s.Require().NoError(err)
 
-	s.Require().Equal(&entity.URL{
-		UUID:     u2.UUID,
-		Short:    "short",
-		Original: "full2",
-	}, url)
+	s.Require().Equal(entityURL, url)
 	os.Remove(fileName)
 }
 
@@ -129,32 +142,62 @@ func (s *FileSystemStorageTestSuite) TestAddBatch() {
 	s.Require().NoError(err)
 	defer fss.Close()
 
-	URLs := []entity.URL{
+	URLs := []*entity.URL{
 		{
 			UUID:     uuid.UUID{},
 			Short:    "",
 			Original: "",
 		},
 	}
-
 	totalCreated, err := fss.AddBatch(ctx, URLs)
 	s.Require().NoError(err)
 	s.Require().Equal(1, totalCreated)
 	os.Remove(fileName)
 }
 
-func addTestURLToFile(id uuid.UUID, shortURL string, fullURL string) (*entity.URL, error) {
+//nolint:unparam
+func addTestURLToFile(u *entity.URL) (*entity.URL, error) {
 	f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o666)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	urlEntity := &entity.URL{
-		UUID:     id,
-		Short:    shortURL,
-		Original: fullURL,
-	}
 	encoder := json.NewEncoder(f)
 
-	return urlEntity, encoder.Encode(urlEntity)
+	return u, encoder.Encode(u)
+}
+
+func (s *FileSystemStorageTestSuite) TestGetUserURLs() {
+	ctx := context.Background()
+
+	s.Run("get one user URL", func() {
+		userID := uuid.New()
+		_, err := addTestURLToFile(&entity.URL{
+			ID:       "2",
+			UUID:     uuid.New(),
+			Short:    "short2",
+			Original: "full2",
+			UserID:   uuid.New(),
+		})
+		s.Require().NoError(err)
+		entityURL := &entity.URL{
+			ID:       "2",
+			UUID:     uuid.New(),
+			Short:    "short2",
+			Original: "full2",
+			UserID:   userID,
+		}
+		_, err = addTestURLToFile(entityURL)
+		s.Require().NoError(err)
+
+		fss, err := NewFileSystemStorage(fileName)
+		s.Require().NoError(err)
+		defer fss.Close()
+
+		url, err := fss.GetAllURLsByUser(ctx, userID, "")
+		s.Require().NoError(err)
+
+		s.Require().Equal([]*entity.URL{entityURL}, url)
+		os.Remove(fileName)
+	})
 }
