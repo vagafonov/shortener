@@ -18,6 +18,7 @@ type URLServiceMock struct {
 	makeShortURLBatchError    error
 	getUserURLsEntities       []*entity.URL
 	getUserURLsError          error
+	deleteUserURLsError       error
 }
 
 func NewURLServiceMock() contract.Service {
@@ -73,4 +74,18 @@ func (s *URLServiceMock) GetUserURLs(ctx context.Context, userID uuid.UUID, base
 func (s *URLServiceMock) SetGetUserURLsResult(e []*entity.URL, err error) {
 	s.getUserURLsEntities = e
 	s.getUserURLsError = err
+}
+
+func (s *URLServiceMock) DeleteUserURLs(
+	ctx context.Context,
+	userID uuid.UUID,
+	shortURLs []string,
+	batchSize int,
+	jobsCount int,
+) error {
+	return s.deleteUserURLsError
+}
+
+func (s *URLServiceMock) SetDeleteUserURLsResult(err error) {
+	s.deleteUserURLsError = err
 }

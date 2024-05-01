@@ -1,3 +1,4 @@
+//nolint:funlen
 package application
 
 import (
@@ -53,6 +54,8 @@ func (s *FunctionalTestSuite) SetupSuite() {
 		fileStoragePath,
 		"test",
 		[]byte("0123456789abcdef"),
+		10,
+		3,
 	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	s.cnt = container.NewContainer(
@@ -254,6 +257,15 @@ func (s *FunctionalTestSuite) TestGetURL() {
 			location: "",
 			init: func(s *FunctionalTestSuite) {
 				s.serviceURL.SetGetShortURLResult(nil, nil)
+			},
+		},
+		{
+			method:   http.MethodGet,
+			URL:      "/deleted-short-url",
+			code:     http.StatusGone,
+			location: "",
+			init: func(s *FunctionalTestSuite) {
+				s.serviceURL.SetGetShortURLResult(nil, customerror.ErrURLDeleted)
 			},
 		},
 	}
@@ -560,5 +572,50 @@ func (s *FunctionalTestSuite) TestApiUserURLs() { //nolint:funlen
 		s.Require().NoError(err)
 		defer resp.Body.Close()
 		s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
+	})
+}
+
+func (s *FunctionalTestSuite) TestDeleteUserURLs() {
+	srv := httptest.NewServer(s.app.Routes())
+	defer srv.Close()
+
+	s.Run("delete user URLs", func() {
+		userID := uuid.New()
+		s.serviceURL.SetDeleteUserURLsResult(nil)
+		r := httptest.NewRequest(
+			http.MethodDelete,
+			srv.URL+"/api/user/urls",
+			strings.NewReader(`["6qxTVvsy", "RTfd56hn", "Jlfd67ds"]`),
+		)
+		r.RequestURI = ""
+		encrypted, err := encrypting.Encrypt(userID.String(), s.cnt.GetConfig().CryptoKey)
+		s.Require().NoError(err)
+		cookie := &http.Cookie{Name: "userID", Value: hex.EncodeToString(encrypted)}
+		r.AddCookie(cookie)
+
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusAccepted, resp.StatusCode)
+	})
+
+	s.Run("delete empty user URLs", func() {
+		userID := uuid.New()
+		s.serviceURL.SetDeleteUserURLsResult(nil)
+		r := httptest.NewRequest(
+			http.MethodDelete,
+			srv.URL+"/api/user/urls",
+			strings.NewReader(`[]`),
+		)
+		r.RequestURI = ""
+		encrypted, err := encrypting.Encrypt(userID.String(), s.cnt.GetConfig().CryptoKey)
+		s.Require().NoError(err)
+		cookie := &http.Cookie{Name: "userID", Value: hex.EncodeToString(encrypted)}
+		r.AddCookie(cookie)
+
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
 	})
 }

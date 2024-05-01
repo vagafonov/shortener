@@ -80,6 +80,20 @@ func (mr *MockStorageMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockStorage)(nil).Close))
 }
 
+// DeleteURLsByUser mocks base method.
+func (m *MockStorage) DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batch []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteURLsByUser", ctx, userID, batch)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteURLsByUser indicates an expected call of DeleteURLsByUser.
+func (mr *MockStorageMockRecorder) DeleteURLsByUser(ctx, userID, batch interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteURLsByUser", reflect.TypeOf((*MockStorage)(nil).DeleteURLsByUser), ctx, userID, batch)
+}
+
 // GetAll mocks base method.
 func (m *MockStorage) GetAll(ctx context.Context) ([]*entity.URL, error) {
 	m.ctrl.T.Helper()

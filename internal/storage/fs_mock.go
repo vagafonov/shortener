@@ -17,6 +17,8 @@ type FileSystemStorageMock struct {
 
 	addBatchResponseTotalCreated int
 	addBatchResponseError        error
+
+	deleteURLsByUserError error
 }
 
 func NewFileSystemStorageMock() contract.Storage {
@@ -69,6 +71,14 @@ func (s *FileSystemStorageMock) GetAllURLsByUser(
 	baseURL string,
 ) ([]*entity.URL, error) {
 	return nil, nil
+}
+
+func (s *FileSystemStorageMock) DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batch []string) error {
+	return nil
+}
+
+func (s *FileSystemStorageMock) SetDeleteURLsByUserResponse(err error) {
+	s.deleteURLsByUserError = err
 }
 
 func (s *FileSystemStorageMock) Ping(ctx context.Context) error { return nil }

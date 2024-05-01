@@ -85,6 +85,10 @@ func (s *memoryStorage) GetAllURLsByUser(ctx context.Context, userID uuid.UUID, 
 	return res, nil
 }
 
+func (s *memoryStorage) DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batch []string) error {
+	return nil
+}
+
 func (s *memoryStorage) Ping(ctx context.Context) error {
 	return nil
 }

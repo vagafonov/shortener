@@ -25,12 +25,16 @@ func NewDBStorage(db *sql.DB) contract.Storage {
 }
 
 func (s *dbStorage) GetByHash(ctx context.Context, key string) (*entity.URL, error) {
-	q := `SELECT id, short, original FROM urls WHERE short = $1`
+	q := `SELECT id, short, original, user_id, deleted_at FROM urls WHERE short = $1`
 	row := s.connection.QueryRowContext(ctx, q, key)
 	var url entity.URL
-	err := row.Scan(&url.UUID, &url.Short, &url.Original)
+	err := row.Scan(&url.UUID, &url.Short, &url.Original, &url.UserID, &url.DeletedAt)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get url by hash: %w", err)
+	}
+
+	if url.DeletedAt != nil {
+		return nil, customerror.ErrURLDeleted
 	}
 
 	return &url, nil
@@ -178,6 +182,41 @@ func (s *dbStorage) GetAllURLsByUser(ctx context.Context, userID uuid.UUID, base
 	}
 
 	return urls, nil
+}
+
+func (s *dbStorage) DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batch []string) error {
+	tx, err := s.connection.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction for delete urls: %w", err)
+	}
+
+	defer func() {
+		err = tx.Rollback()
+	}()
+	if err != nil {
+		return fmt.Errorf("failed to rollback transaction for delete urls: %w", err)
+	}
+
+	stmt, err := s.connection.PrepareContext(ctx, "UPDATE urls SET deleted_at = NOW() WHERE short = $1")
+	if err != nil {
+		return fmt.Errorf("failed to prepare context for delete urls: %w", err)
+	}
+	defer func() {
+		err = stmt.Close()
+	}()
+	if err != nil {
+		return fmt.Errorf("failed to close stmt for delete urls: %w", err)
+	}
+
+	for _, v := range batch {
+		// _, err := stmt.ExecContext(ctx, userID, v)
+		_, err := stmt.ExecContext(ctx, v)
+		if err != nil {
+			return fmt.Errorf("failed to exec context for delete urls: %w", err)
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (s *dbStorage) Ping(ctx context.Context) error {
