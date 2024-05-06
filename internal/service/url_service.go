@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -109,4 +110,61 @@ func (s *urlService) MakeShortURLBatch(
 
 func (s *urlService) GetUserURLs(ctx context.Context, userID uuid.UUID, baseURL string) ([]*entity.URL, error) {
 	return s.mainStorage.GetAllURLsByUser(ctx, userID, baseURL)
+}
+
+func (s *urlService) DeleteUserURLs(
+	ctx context.Context,
+	userID uuid.UUID,
+	shortURLs []string,
+	batchSize int,
+	jobsCount int,
+) error {
+	ch := s.batchDeleteGenerator(shortURLs, batchSize)
+	s.batchDeleteConsumer(ctx, ch, jobsCount, userID)
+
+	return nil
+}
+
+func (s *urlService) batchDeleteGenerator(shortURLs []string, bSize int) chan []string {
+	ch := make(chan []string)
+	go func() {
+		defer close(ch)
+
+		batch := make([]string, bSize)
+		var skippedPosition int
+		for k, v := range shortURLs {
+			if k != 0 && k%bSize == 0 {
+				s.logger.Debug().Strs("batch", batch).Msg("generator write batch")
+				ch <- batch
+				batch = make([]string, bSize)
+				skippedPosition = k
+			}
+			batch[k%bSize] = v
+		}
+		ch <- shortURLs[skippedPosition:]
+	}()
+
+	return ch
+}
+
+func (s *urlService) batchDeleteConsumer(ctx context.Context, ch chan []string, jobsCount int, userID uuid.UUID) {
+	s.logger.Debug().Msgf("batch delete consumer started with %v jobs", jobsCount)
+	wg := sync.WaitGroup{}
+	wg.Add(jobsCount)
+	for i := 1; i <= jobsCount; i++ {
+		go func(n int) {
+			s.logger.Debug().Msgf("gorutine №%v started", n)
+			for batch := range ch {
+				if err := s.mainStorage.DeleteURLsByUser(ctx, userID, batch); err != nil {
+					s.logger.Error().Err(err).Strs("batch", batch).Msg("failed delete batch urls in consumer")
+				}
+				s.logger.Debug().Strs("batch", batch).Msgf("gorutine №%v successfully handled batch in comsumer", n)
+			}
+			wg.Done()
+
+			s.logger.Debug().Msgf("gorutine №%v completed", n)
+		}(i)
+	}
+	wg.Wait()
+	s.logger.Debug().Msg("batch delete consumer completed")
 }

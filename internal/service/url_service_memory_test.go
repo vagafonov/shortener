@@ -45,7 +45,15 @@ func (s *ServiceURLMemorySuite) SetupSuite() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfg := config.NewConfig("test", "http://test:8080", fileName, "test", []byte("0123456789abcdef"))
+	cfg := config.NewConfig(
+		"test",
+		"http://test:8080",
+		fileName,
+		"test",
+		[]byte("0123456789abcdef"),
+		10,
+		3,
+	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	s.cnt = container.NewContainer(
 		cfg,
@@ -214,5 +222,17 @@ func (s *ServiceURLMemorySuite) TestGetUserURLs() {
 		s.Require().Len(userURLs, 1)
 		s.Require().NoError(err)
 		s.Require().Equal(exp, userURLs)
+	})
+}
+
+func (s *ServiceURLMemorySuite) TestDeleteUserURLs() {
+	s.Run("delete user urls", func() {
+		ctx := context.Background()
+		userID := uuid.Must(uuid.NewUUID())
+
+		sh := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"}
+		err := s.service.DeleteUserURLs(ctx, userID, sh, 1, 1)
+
+		s.Require().NoError(err)
 	})
 }

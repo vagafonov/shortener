@@ -14,6 +14,7 @@ type Storage interface {
 	AddBatch(ctx context.Context, URLs []*entity.URL) (int, error)
 	GetAll(ctx context.Context) ([]*entity.URL, error)
 	GetAllURLsByUser(ctx context.Context, userID uuid.UUID, baseURL string) ([]*entity.URL, error)
+	DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batch []string) error
 	Ping(ctx context.Context) error
 	Truncate()
 	Close() error

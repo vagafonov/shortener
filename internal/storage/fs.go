@@ -123,6 +123,11 @@ func (fss *fileSystemStorage) GetAllURLsByUser(
 	return res, nil
 }
 
+// DeleteURLsByUser TODO need implement.
+func (fss *fileSystemStorage) DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batch []string) error {
+	return nil
+}
+
 func (fss *fileSystemStorage) Ping(ctx context.Context) error {
 	return nil
 }

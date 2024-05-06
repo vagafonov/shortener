@@ -35,7 +35,15 @@ func (s *ServiceDBSuite) SetupSuite() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfg := config.NewConfig("test", "http://test:8080", fileName, "test", []byte("0123456789abcdef"))
+	cfg := config.NewConfig(
+		"test",
+		"http://test:8080",
+		fileName,
+		"test",
+		[]byte("0123456789abcdef"),
+		10,
+		3,
+	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	hr := hasher.NewMockHasher()
 	s.cnt = container.NewContainer(

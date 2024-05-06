@@ -53,3 +53,21 @@ func (v *validator) ShortenBatchRequest(ctx context.Context, buf bytes.Buffer) (
 
 	return req, nil
 }
+
+func (v *validator) DeleteUserURLsRequest(ctx context.Context, buf bytes.Buffer) ([]string, error) {
+	var req []string
+	if err := json.Unmarshal(buf.Bytes(), &req); err != nil {
+		v.logger.
+			Warn().
+			Str("error", err.Error()).
+			Str("request", buf.String()).
+			Msg("cannot unmarshal delete user URLs request")
+
+		return nil, err
+	}
+	if len(req) == 0 {
+		return nil, ErrValidateEmpty
+	}
+
+	return req, nil
+}

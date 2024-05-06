@@ -32,7 +32,15 @@ func main() {
 	parseFlags(opt)
 	parseEnv(opt)
 
-	cfg := config.NewConfig(opt.ServerURL, opt.ResultURL, opt.FileStoragePath, opt.DatabaseDSN, []byte("0123456789abcdef"))
+	cfg := config.NewConfig(
+		opt.ServerURL,
+		opt.ResultURL,
+		opt.FileStoragePath,
+		opt.DatabaseDSN,
+		[]byte("0123456789abcdef"),
+		10, //nolint:gomnd
+		2,  //nolint:gomnd
+	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	var strg contract.Storage
 	var err error
@@ -62,23 +70,9 @@ func main() {
 		db,
 	)
 
-	backupStorage, err := storage.StorageFactory(cnt, "fs")
-	if err != nil {
-		lr.Err(err).Send()
-	}
-	cnt.SetBackupStorage(backupStorage)
-
-	servURL, err := service.ServiceURLFactory(cnt, "real")
-	if err != nil {
-		lr.Err(err).Send()
-	}
-	cnt.SetServiceURL(servURL)
-
-	servHealthcheck, err := service.ServiceHealthCheckFactory(cnt, "real")
-	if err != nil {
-		lr.Err(err).Send()
-	}
-	cnt.SetServiceHealthCheck(servHealthcheck)
+	setBackupStorage(cnt, lr)
+	setServiceStorage(cnt, lr)
+	setHealthCheckService(cnt, lr)
 
 	app := application.NewApplication(cnt)
 	if err := app.Serve(); err != nil {
@@ -93,4 +87,28 @@ func prepareDB(lr *zerolog.Logger, cfg *config.Config) (*sql.DB, error) {
 	}
 
 	return db, runMigrations(db)
+}
+
+func setBackupStorage(cnt *container.Container, lr *zerolog.Logger) {
+	backupStorage, err := storage.StorageFactory(cnt, "fs")
+	if err != nil {
+		lr.Err(err).Send()
+	}
+	cnt.SetBackupStorage(backupStorage)
+}
+
+func setHealthCheckService(cnt *container.Container, lr *zerolog.Logger) {
+	servHealthcheck, err := service.ServiceHealthCheckFactory(cnt, "real")
+	if err != nil {
+		lr.Err(err).Send()
+	}
+	cnt.SetServiceHealthCheck(servHealthcheck)
+}
+
+func setServiceStorage(cnt *container.Container, lr *zerolog.Logger) {
+	servURL, err := service.ServiceURLFactory(cnt, "real")
+	if err != nil {
+		lr.Err(err).Send()
+	}
+	cnt.SetServiceURL(servURL)
 }

@@ -26,6 +26,8 @@ type MemoryStorageMock struct {
 
 	getAllURLsByUserEntity []*entity.URL
 	getAllURLsByUserError  error
+
+	deleteURLsByUserError error
 }
 
 func NewMemoryStorageMock() contract.Storage {
@@ -83,6 +85,14 @@ func (s *MemoryStorageMock) GetAllURLsByUser(
 func (s *MemoryStorageMock) SetGetAllURLsByUserResponse(u []*entity.URL, err error) {
 	s.getAllURLsByUserEntity = u
 	s.getAllURLsByUserError = err
+}
+
+func (s *MemoryStorageMock) DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batch []string) error {
+	return nil
+}
+
+func (s *MemoryStorageMock) SetDeleteURLsByUserResponse(err error) {
+	s.deleteURLsByUserError = err
 }
 
 func (s *MemoryStorageMock) Ping(ctx context.Context) error { return nil }

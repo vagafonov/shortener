@@ -68,6 +68,7 @@ func (a *Application) Routes() *chi.Mux {
 		r.Post("/shorten", a.shorten)
 		r.Post("/shorten/batch", a.shortenBatch)
 		r.Get("/user/urls", a.userUrls)
+		r.Delete("/user/urls", a.deleteUserURLs)
 	})
 
 	return r
@@ -186,6 +187,12 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 func (a *Application) getShortURL(res http.ResponseWriter, req *http.Request) {
 	shortURL, err := a.cnt.GetServiceURL().GetShortURL(req.Context(), chi.URLParam(req, "short_url"))
 	if err != nil {
+		if errors.Is(err, customerror.ErrURLDeleted) {
+			a.cnt.GetLogger().Info().Msg("trying to get deleted address")
+			res.WriteHeader(http.StatusGone)
+		}
+
+		a.cnt.GetLogger().Error().Err(err).Msg("cannot get short url")
 		res.WriteHeader(http.StatusInternalServerError)
 
 		return
@@ -322,6 +329,61 @@ func (a *Application) userUrls(res http.ResponseWriter, req *http.Request) {
 
 		return
 	}
+}
+
+func (a *Application) deleteUserURLs(res http.ResponseWriter, req *http.Request) {
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(req.Body)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot read body")
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	validatedRequest, err := validate.NewValidator(a.cnt.GetLogger()).DeleteUserURLsRequest(req.Context(), buf)
+	if err != nil {
+		if errors.Is(err, validate.ErrValidateEmpty) {
+			res.WriteHeader(http.StatusBadRequest)
+
+			return
+		}
+
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	userID, err := a.getUserIDFromCookie(req)
+	if err != nil {
+		a.cnt.GetLogger().Err(err).Msg("cannot get cookie with userID")
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	if userID == uuid.Nil {
+		a.cnt.GetLogger().Err(err).Msg("cookie with userID is empty")
+		res.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
+	err = a.cnt.GetServiceURL().DeleteUserURLs(
+		req.Context(),
+		userID,
+		validatedRequest,
+		a.cnt.GetConfig().DeleteURLsBatchSize,
+		a.cnt.GetConfig().DeleteURLsJobsCount,
+	)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot delete user URLs")
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	res.WriteHeader(http.StatusAccepted)
 }
 
 func (a *Application) getUserIDFromCookie(req *http.Request) (uuid.UUID, error) {
