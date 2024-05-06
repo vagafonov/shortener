@@ -45,7 +45,7 @@ func (s *ServiceURLMemorySuite) SetupSuite() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfg := config.NewConfig("test", "http://test:8080", fileName, "test")
+	cfg := config.NewConfig("test", "http://test:8080", fileName, "test", []byte("0123456789abcdef"))
 	lr := logger.CreateLogger(cfg.LogLevel)
 	s.cnt = container.NewContainer(
 		cfg,
@@ -103,7 +103,8 @@ func (s *ServiceURLMemorySuite) TestMakeShortURL() {
 			Original: "some_url",
 		}
 		s.mainStorage.SetAddResponse(expEntity, nil)
-		e, err := s.service.MakeShortURL(ctx, "some_url", 5)
+		userID := uuid.Must(uuid.NewUUID())
+		e, err := s.service.MakeShortURL(ctx, "some_url", 5, userID)
 		s.Require().NoError(err)
 		s.Require().Equal(expEntity, e)
 	})
@@ -116,7 +117,8 @@ func (s *ServiceURLMemorySuite) TestMakeShortURL() {
 			Original: "some_url",
 		}
 		s.mainStorage.SetGetByURLResponse(expEntity, nil)
-		e, err := s.service.MakeShortURL(ctx, "some_url", 5)
+		userID := uuid.Must(uuid.NewUUID())
+		e, err := s.service.MakeShortURL(ctx, "some_url", 5, userID)
 		s.Require().Error(err)
 		s.Require().Equal(expEntity, e)
 	})
@@ -126,7 +128,7 @@ func (s *ServiceURLMemorySuite) TestMakeShortURL() {
 func (s *ServiceURLMemorySuite) TestRestoreURLs() {
 	ctx := context.Background()
 	s.Run("restore all urls", func() {
-		s.backupStorage.SetGetAllResponse([]entity.URL{
+		s.backupStorage.SetGetAllResponse([]*entity.URL{
 			{
 				UUID:     uuid.UUID{},
 				Short:    "",
@@ -153,7 +155,7 @@ func (s *ServiceURLMemorySuite) TestRestoreURLs() {
 
 	s.Run("add URL failed", func() {
 		ctx := context.Background()
-		s.backupStorage.SetGetAllResponse([]entity.URL{
+		s.backupStorage.SetGetAllResponse([]*entity.URL{
 			{
 				UUID:     uuid.UUID{},
 				Short:    "",
@@ -180,9 +182,9 @@ func (s *ServiceURLMemorySuite) TestRestoreURLs() {
 		}
 		s.mainStorage.SetAddBatchResponse(1, nil)
 
-		URLs := make([]entity.URL, len(req))
+		URLs := make([]*entity.URL, len(req))
 		for k, v := range req {
-			URLs[k] = entity.URL{
+			URLs[k] = &entity.URL{
 				ID:       v.CorrelationID,
 				Short:    s.cnt.GetHasher().Hash(s.cnt.GetConfig().ShortURLLength),
 				Original: v.OriginalURL,
@@ -191,5 +193,26 @@ func (s *ServiceURLMemorySuite) TestRestoreURLs() {
 		resp, err := s.service.MakeShortURLBatch(ctx, URLs, "url")
 		s.Require().Equal(expResp, resp)
 		s.Require().NoError(err)
+	})
+}
+
+func (s *ServiceURLMemorySuite) TestGetUserURLs() {
+	s.Run("get user urls", func() {
+		ctx := context.Background()
+		userID := uuid.Must(uuid.NewUUID())
+		exp := []*entity.URL{
+			{
+				UUID:     uuid.UUID{},
+				Short:    "****",
+				Original: "some_url",
+				UserID:   userID,
+			},
+		}
+		s.mainStorage.SetGetAllURLsByUserResponse(exp, nil)
+
+		userURLs, err := s.service.GetUserURLs(ctx, userID, "")
+		s.Require().Len(userURLs, 1)
+		s.Require().NoError(err)
+		s.Require().Equal(exp, userURLs)
 	})
 }

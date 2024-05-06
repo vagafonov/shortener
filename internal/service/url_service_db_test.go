@@ -35,7 +35,7 @@ func (s *ServiceDBSuite) SetupSuite() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfg := config.NewConfig("test", "http://test:8080", fileName, "test")
+	cfg := config.NewConfig("test", "http://test:8080", fileName, "test", []byte("0123456789abcdef"))
 	lr := logger.CreateLogger(cfg.LogLevel)
 	hr := hasher.NewMockHasher()
 	s.cnt = container.NewContainer(
@@ -91,7 +91,8 @@ func (s *ServiceDBSuite) TestMakeShortURL() {
 			Original: "some_url",
 		}
 		m.EXPECT().GetByURL(ctx, "some_url").Return(nil, nil)
-		m.EXPECT().Add(ctx, "*****", "some_url").Return(expEntity, nil)
+		userID := uuid.Must(uuid.NewUUID())
+		m.EXPECT().Add(ctx, "*****", "some_url", userID).Return(expEntity, nil)
 		s.service = NewURLService(
 			s.cnt.GetLogger(),
 			m,
@@ -99,7 +100,7 @@ func (s *ServiceDBSuite) TestMakeShortURL() {
 			s.cnt.GetHasher(),
 		)
 
-		e, err := s.service.MakeShortURL(ctx, "some_url", 5)
+		e, err := s.service.MakeShortURL(ctx, "some_url", 5, userID)
 		s.Require().NoError(err)
 		s.Require().Equal(expEntity, e)
 	})
@@ -122,7 +123,8 @@ func (s *ServiceDBSuite) TestMakeShortURL() {
 			s.cnt.GetHasher(),
 		)
 
-		e, err := s.service.MakeShortURL(ctx, "some_url", 5)
+		userID := uuid.Must(uuid.NewUUID())
+		e, err := s.service.MakeShortURL(ctx, "some_url", 5, userID)
 		s.Require().Error(err)
 		s.Require().Equal(expEntity, e)
 	})
@@ -131,17 +133,19 @@ func (s *ServiceDBSuite) TestMakeShortURL() {
 func (s *ServiceDBSuite) TestRestoreURLs() {
 	ctx := context.Background()
 	s.Run("restore all urls", func() {
+		userID := uuid.New()
 		expEntity := &entity.URL{
 			UUID:     uuid.UUID{},
 			Short:    "*****",
 			Original: "some_url",
+			UserID:   userID,
 		}
-		s.backupStorage.SetGetAllResponse([]entity.URL{*expEntity}, nil)
+		s.backupStorage.SetGetAllResponse([]*entity.URL{expEntity}, nil)
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
 		m := storage.NewMockStorage(ctrl)
 
-		m.EXPECT().Add(ctx, "*****", "some_url").Return(expEntity, nil)
+		m.EXPECT().Add(ctx, "*****", "some_url", userID).Return(expEntity, nil)
 		s.service = NewURLService(
 			s.cnt.GetLogger(),
 			m,
@@ -155,23 +159,14 @@ func (s *ServiceDBSuite) TestRestoreURLs() {
 	})
 }
 
-//nolint:funlen
 func (s *ServiceDBSuite) TestAddBatch() {
 	ctx := context.Background()
 	s.Run("add batch", func() {
-		/*
-			expEntity := &entity.URL{
-				UUID:     uuid.UUID{},
-				Short:    "*****",
-				Original: "some_url",
-			}
-			s.backupStorage.SetGetAllResponse([]entity.URL{*expEntity}, nil)
-		*/
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
 		m := storage.NewMockStorage(ctrl)
 
-		newEntities := []entity.URL{
+		newEntities := []*entity.URL{
 			{
 				ID:       "1",
 				Short:    "*****",
@@ -203,9 +198,9 @@ func (s *ServiceDBSuite) TestAddBatch() {
 			},
 		}
 
-		URLs := make([]entity.URL, len(req))
+		URLs := make([]*entity.URL, len(req))
 		for k, v := range req {
-			URLs[k] = entity.URL{
+			URLs[k] = &entity.URL{
 				ID:       v.CorrelationID,
 				Short:    s.cnt.GetHasher().Hash(5),
 				Original: v.OriginalURL,

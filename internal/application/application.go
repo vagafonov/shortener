@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/vagafonov/shortener/internal/container"
+	"github.com/vagafonov/shortener/internal/cookie"
 	"github.com/vagafonov/shortener/internal/customerror"
 	"github.com/vagafonov/shortener/internal/middleware"
 	"github.com/vagafonov/shortener/internal/response"
@@ -54,6 +56,9 @@ func (a *Application) Routes() *chi.Mux {
 	mw := middleware.NewMiddleware(a.cnt.GetLogger())
 	r.Use(mw.WithLogging)
 	r.Use(mw.WithCompress)
+	r.Use(func(handler http.Handler) http.Handler {
+		return mw.WithUserIDCookie(handler, a.cnt.GetConfig().CryptoKey)
+	})
 	r.Get("/{short_url}", a.getShortURL)
 	r.Post("/", a.createShortURL)
 	r.Post("/api/", a.createShortURL)
@@ -62,6 +67,7 @@ func (a *Application) Routes() *chi.Mux {
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/shorten", a.shorten)
 		r.Post("/shorten/batch", a.shortenBatch)
+		r.Get("/user/urls", a.userUrls)
 	})
 
 	return r
@@ -70,6 +76,7 @@ func (a *Application) Routes() *chi.Mux {
 func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
+		a.cnt.GetLogger().Err(err).Msg("cannot get read body")
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 
 		return
@@ -80,7 +87,21 @@ func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request)
 
 		return
 	}
-	shortURL, err := a.cnt.GetServiceURL().MakeShortURL(req.Context(), string(body), a.cnt.GetConfig().ShortURLLength)
+
+	userID, err := a.getUserIDFromCookie(req)
+	if err != nil {
+		a.cnt.GetLogger().Err(err).Msg("cannot get cookie with userID")
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	shortURL, err := a.cnt.GetServiceURL().MakeShortURL(
+		req.Context(),
+		string(body),
+		a.cnt.GetConfig().ShortURLLength,
+		userID,
+	)
 	statusCode := http.StatusCreated
 	if err != nil {
 		if errors.Is(err, customerror.ErrURLAlreadyExists) {
@@ -97,6 +118,7 @@ func (a *Application) createShortURL(res http.ResponseWriter, req *http.Request)
 	}
 }
 
+//nolint:funlen
 func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(req.Body)
@@ -114,10 +136,19 @@ func (a *Application) shorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	userID, err := a.getUserIDFromCookie(req)
+	if err != nil {
+		a.cnt.GetLogger().Err(err).Msg("cannot get cookie with userID")
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
 	shortURL, err := a.cnt.GetServiceURL().MakeShortURL(
 		req.Context(),
 		validatedRequest.URL,
 		a.cnt.GetConfig().ShortURLLength,
+		userID,
 	)
 	statusCode := http.StatusCreated
 	if err != nil {
@@ -202,9 +233,9 @@ func (a *Application) shortenBatch(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	URLs := make([]entity.URL, len(validatedRequest))
+	URLs := make([]*entity.URL, len(validatedRequest))
 	for k, v := range validatedRequest {
-		URLs[k] = entity.URL{
+		URLs[k] = &entity.URL{
 			ID:       v.CorrelationID,
 			Short:    a.cnt.GetHasher().Hash(a.cnt.GetConfig().ShortURLLength),
 			Original: v.OriginalURL,
@@ -238,4 +269,84 @@ func (a *Application) shortenBatch(res http.ResponseWriter, req *http.Request) {
 
 		return
 	}
+}
+
+func (a *Application) userUrls(res http.ResponseWriter, req *http.Request) {
+	userID, err := a.getUserIDFromCookie(req)
+	if err != nil {
+		a.cnt.GetLogger().Err(err).Msg("cannot get cookie with userID")
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	if userID == uuid.Nil {
+		a.cnt.GetLogger().Err(err).Msg("cookie with userID is empty")
+		res.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
+	userURLs, err := a.cnt.GetServiceURL().GetUserURLs(req.Context(), userID, a.cnt.GetConfig().ResultURL)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot get user URLs")
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	if len(userURLs) == 0 {
+		res.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
+	userURLsResp := make([]response.UserURLResponse, len(userURLs))
+	for k, v := range userURLs {
+		userURLsResp[k] = response.NewUserURLResponse(v.Short, v.Original)
+	}
+
+	jsonRes, err := json.Marshal(userURLsResp)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot encode get user URLs response to JSON")
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	res.Header().Set("content-type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	_, err = res.Write(jsonRes)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot write result to response")
+
+		return
+	}
+}
+
+func (a *Application) getUserIDFromCookie(req *http.Request) (uuid.UUID, error) {
+	userIDCoockie, err := req.Cookie("userID")
+	if err != nil {
+		if !errors.Is(err, http.ErrNoCookie) {
+			a.cnt.GetLogger().Err(err).Msg("cannot get cookie with userID")
+
+			return uuid.Nil, err
+		}
+	}
+
+	if userIDCoockie == nil {
+		return uuid.Nil, nil
+	}
+
+	decr, err := cookie.Decrypt(userIDCoockie.Value, a.cnt.GetConfig().CryptoKey)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	decryptedUUID, err := uuid.Parse(*decr)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return decryptedUUID, err
 }

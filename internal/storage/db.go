@@ -55,10 +55,10 @@ func (s *dbStorage) GetByURL(ctx context.Context, val string) (*entity.URL, erro
 	return &url, nil
 }
 
-func (s *dbStorage) Add(ctx context.Context, hash string, url string) (*entity.URL, error) {
-	q := `INSERT INTO urls (id, short, original) VALUES ($1, $2, $3)`
+func (s *dbStorage) Add(ctx context.Context, hash string, url string, userID uuid.UUID) (*entity.URL, error) {
+	q := `INSERT INTO urls (id, short, original, user_id) VALUES ($1, $2, $3, $4)`
 	id := uuid.New()
-	res, err := s.connection.ExecContext(ctx, q, id, hash, url)
+	res, err := s.connection.ExecContext(ctx, q, id, hash, url, userID)
 	if err != nil {
 		return nil, fmt.Errorf("cannot add url: %w", err)
 	}
@@ -76,10 +76,11 @@ func (s *dbStorage) Add(ctx context.Context, hash string, url string) (*entity.U
 		UUID:     id,
 		Short:    hash,
 		Original: url,
+		UserID:   userID,
 	}, nil
 }
 
-func (s *dbStorage) GetAll(ctx context.Context) ([]entity.URL, error) {
+func (s *dbStorage) GetAll(ctx context.Context) ([]*entity.URL, error) {
 	q := `SELECT id, short, original FROM urls LIMIT 1000`
 	rows, err := s.connection.QueryContext(ctx, q)
 	if err != nil {
@@ -87,14 +88,14 @@ func (s *dbStorage) GetAll(ctx context.Context) ([]entity.URL, error) {
 	}
 	defer rows.Close()
 
-	urls := make([]entity.URL, 0)
+	urls := make([]*entity.URL, 0)
 	for rows.Next() {
 		var u entity.URL
 		err = rows.Scan(&u.UUID, &u.Short, &u.Original)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get all urls: %w", err)
 		}
-		urls = append(urls, u)
+		urls = append(urls, &u)
 	}
 
 	err = rows.Err()
@@ -105,8 +106,8 @@ func (s *dbStorage) GetAll(ctx context.Context) ([]entity.URL, error) {
 	return urls, nil
 }
 
-func (s *dbStorage) AddBatch(ctx context.Context, b []entity.URL) (int, error) {
-	bufIns := make([]entity.URL, 0)
+func (s *dbStorage) AddBatch(ctx context.Context, b []*entity.URL) (int, error) {
+	bufIns := make([]*entity.URL, 0)
 	inserted := 0
 	for _, v := range b {
 		v.UUID = uuid.New()
@@ -128,27 +129,55 @@ func (s *dbStorage) AddBatch(ctx context.Context, b []entity.URL) (int, error) {
 	return inserted, nil
 }
 
-func (s *dbStorage) batchInsert(ctx context.Context, urls []entity.URL) error {
+func (s *dbStorage) batchInsert(ctx context.Context, urls []*entity.URL) error {
 	tx, err := s.connection.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, short, original) VALUES($1, $2, $3)")
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, short, original, user_id) VALUES($1, $2, $3, $4)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	for _, u := range urls {
-		_, err := stmt.ExecContext(ctx, u.UUID, u.Short, u.Original)
+		_, err := stmt.ExecContext(ctx, u.UUID, u.Short, u.Original, u.UserID)
 		if err != nil {
 			return err
 		}
 	}
 
 	return tx.Commit()
+}
+
+func (s *dbStorage) GetAllURLsByUser(ctx context.Context, userID uuid.UUID, baseURL string) ([]*entity.URL, error) {
+	q := `SELECT id, short, original FROM urls WHERE user_id = $1 LIMIT 1000`
+
+	rows, err := s.connection.QueryContext(ctx, q, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	urls := make([]*entity.URL, 0)
+	for rows.Next() {
+		var u entity.URL
+		err = rows.Scan(&u.UUID, &u.Short, &u.Original)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get all urls by user: %w", err)
+		}
+		u.Short = fmt.Sprintf("%s/%s", baseURL, u.Short)
+		urls = append(urls, &u)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("cannot scan all urls by user: %w", err)
+	}
+
+	return urls, nil
 }
 
 func (s *dbStorage) Ping(ctx context.Context) error {

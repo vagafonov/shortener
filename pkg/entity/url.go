@@ -8,4 +8,5 @@ type URL struct {
 	UUID     uuid.UUID
 	Short    string
 	Original string
+	UserID   uuid.UUID
 }
