@@ -1,6 +1,4 @@
-package hash
-
-const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+package hasher
 
 type Hasher interface {
 	Hash(length int) string

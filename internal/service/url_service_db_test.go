@@ -43,6 +43,7 @@ func (s *ServiceDBSuite) SetupSuite() {
 		[]byte("0123456789abcdef"),
 		10,
 		3,
+		config.ModeTest,
 	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	hr := hasher.NewMockHasher()
