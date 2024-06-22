@@ -64,7 +64,7 @@ func (c *Container) GetHasher() hash.Hasher {
 		return c.hasher
 	}
 
-	return hash.NewRandHasher()
+	return hash.NewRandHasher(hash.Alphabet)
 }
 
 func (c *Container) GetLogger() *zerolog.Logger {

@@ -4,6 +4,14 @@ import "github.com/rs/zerolog"
 
 const shortURLLength = 8
 
+const (
+	ModeProd Mode = "prod"
+	ModeDev  Mode = "dev"
+	ModeTest Mode = "test"
+)
+
+type Mode string
+
 type Config struct {
 	ServerURL           string
 	ResultURL           string
@@ -14,6 +22,7 @@ type Config struct {
 	CryptoKey           []byte
 	DeleteURLsBatchSize int
 	DeleteURLsJobsCount int
+	Mode                Mode
 }
 
 func NewConfig(
@@ -24,6 +33,7 @@ func NewConfig(
 	cryptoKey []byte,
 	deleteURLsBatchSize int,
 	deleteURLsJobsCount int,
+	mode Mode,
 ) *Config {
 	return &Config{
 		ServerURL:           serverURL,
@@ -35,5 +45,6 @@ func NewConfig(
 		CryptoKey:           cryptoKey,
 		DeleteURLsBatchSize: deleteURLsBatchSize,
 		DeleteURLsJobsCount: deleteURLsJobsCount,
+		Mode:                mode,
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/vagafonov/shortener/internal/cookie"
 	"github.com/vagafonov/shortener/pkg/encrypting"
@@ -12,6 +13,12 @@ import (
 // Проверяет наличие cookie c идентификатором пользователя и выдает ее в случае ее отсутствия.
 func (mw *middleware) WithUserIDCookie(next http.Handler, cryptoKey []byte) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.RequestURI, "/debug/") {
+			next.ServeHTTP(w, r)
+
+			return
+		}
+
 		userIDCoockie, err := r.Cookie("userID")
 		if err != nil {
 			if !errors.Is(err, http.ErrNoCookie) {
