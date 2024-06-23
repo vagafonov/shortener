@@ -1,8 +1,9 @@
 package hasher
 
 import (
-	"github.com/stretchr/testify/suite"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
 )
 
 type RandHasherTestSuite struct {
@@ -14,7 +15,6 @@ func TestRandHasherTestSuite(t *testing.T) {
 }
 
 func (s *RandHasherTestSuite) TestCreateURL() {
-
 	testCases := []struct {
 		name     string
 		inputLen int
