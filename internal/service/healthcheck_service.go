@@ -13,6 +13,7 @@ type healtCheckService struct {
 	mainStorage contract.Storage
 }
 
+// NewHealtCheckService Constructor for HealtCheckService.
 func NewHealtCheckService(
 	logger *zerolog.Logger,
 	mainStorage contract.Storage,
@@ -23,6 +24,7 @@ func NewHealtCheckService(
 	}
 }
 
+// Ping.
 func (s *healtCheckService) Ping(ctx context.Context) error {
 	return s.mainStorage.Ping(ctx)
 }

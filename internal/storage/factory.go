@@ -7,8 +7,10 @@ import (
 	"github.com/vagafonov/shortener/internal/contract"
 )
 
+// ErrUndefinedStorageType error for undefined storage type.
 var ErrUndefinedStorageType = errors.New("undefined storage type")
 
+// StorageFactory return concrete storage instance.
 func StorageFactory(cnt *container.Container, t string) (contract.Storage, error) {
 	// TODO use enum
 	switch t {

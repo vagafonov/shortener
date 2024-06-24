@@ -6,6 +6,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// CreateLogger.
 func CreateLogger(l zerolog.Level) *zerolog.Logger {
 	// Инициализация логгера zerolog
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()

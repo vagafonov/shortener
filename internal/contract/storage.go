@@ -7,6 +7,7 @@ import (
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
+// Storage abstract interface for storage.
 type Storage interface {
 	GetByHash(ctx context.Context, hash string) (*entity.URL, error)
 	GetByURL(ctx context.Context, url string) (*entity.URL, error)

@@ -4,14 +4,17 @@ import "github.com/rs/zerolog"
 
 const shortURLLength = 8
 
+// application modes.
 const (
 	ModeProd Mode = "prod"
 	ModeDev  Mode = "dev"
 	ModeTest Mode = "test"
 )
 
+// Mode application mode.
 type Mode string
 
+// Config.
 type Config struct {
 	ServerURL           string
 	ResultURL           string
@@ -25,6 +28,7 @@ type Config struct {
 	Mode                Mode
 }
 
+// Constructor for Config.
 func NewConfig(
 	serverURL string,
 	resultURL string,

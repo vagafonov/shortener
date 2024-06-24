@@ -9,8 +9,10 @@ import (
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
+// ErrURLAlreadyExists url for already exists.
 var ErrURLAlreadyExists = errors.New("url already exists")
 
+// Storage abstract interface for Service.
 // TODO Rename.
 type Service interface {
 	MakeShortURL(ctx context.Context, url string, length int, userID uuid.UUID) (*entity.URL, error)

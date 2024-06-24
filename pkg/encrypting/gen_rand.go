@@ -2,6 +2,7 @@ package encrypting
 
 import "crypto/rand"
 
+// GenerateRandom generate random byte slice.
 func GenerateRandom(size int) ([]byte, error) {
 	b := make([]byte, size)
 
