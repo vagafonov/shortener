@@ -22,6 +22,7 @@ type urlService struct {
 	hasher        hash.Hasher
 }
 
+// NewURLService Constructor for URLService.
 func NewURLService(
 	logger *zerolog.Logger,
 	mainStorage contract.Storage,
@@ -36,6 +37,7 @@ func NewURLService(
 	}
 }
 
+// MakeShortURL make short url.
 func (s *urlService) MakeShortURL(ctx context.Context, url string, length int, userID uuid.UUID) (*entity.URL, error) {
 	shortURL, err := s.mainStorage.GetByURL(ctx, url)
 	if err != nil {
@@ -57,12 +59,14 @@ func (s *urlService) MakeShortURL(ctx context.Context, url string, length int, u
 	return shortURL, nil
 }
 
+// GetShortURL get short url.
 func (s *urlService) GetShortURL(ctx context.Context, url string) (*entity.URL, error) {
 	s.logger.Info().Str("url", url).Msg("GetShortURL")
 
 	return s.mainStorage.GetByHash(ctx, url)
 }
 
+// RestoreURLs restore short URLs.
 func (s *urlService) RestoreURLs(ctx context.Context, fileName string) (int, error) {
 	// TODO need pagination
 
@@ -81,6 +85,7 @@ func (s *urlService) RestoreURLs(ctx context.Context, fileName string) (int, err
 	return len(URLs), err
 }
 
+// MakeShortURLBatch make short URL batch.
 func (s *urlService) MakeShortURLBatch(
 	ctx context.Context,
 	urls []*entity.URL,
@@ -108,10 +113,12 @@ func (s *urlService) MakeShortURLBatch(
 	return resp, nil
 }
 
+// GetUserURLs get user URLS.
 func (s *urlService) GetUserURLs(ctx context.Context, userID uuid.UUID, baseURL string) ([]*entity.URL, error) {
 	return s.mainStorage.GetAllURLsByUser(ctx, userID, baseURL)
 }
 
+// DeleteUserURLs delete user URLS.
 func (s *urlService) DeleteUserURLs(
 	ctx context.Context,
 	userID uuid.UUID,

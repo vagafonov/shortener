@@ -17,6 +17,7 @@ type fileSystemStorage struct {
 	scanner *bufio.Scanner
 }
 
+// Constructor for FileSystemStorage.
 func NewFileSystemStorage(fileName string) (contract.Storage, error) {
 	fss := fileSystemStorage{}
 	var err error
@@ -30,6 +31,7 @@ func NewFileSystemStorage(fileName string) (contract.Storage, error) {
 	return &fss, nil
 }
 
+// GetByHash get short ny hash.
 func (fss *fileSystemStorage) GetByHash(ctx context.Context, hash string) (*entity.URL, error) {
 	var e *entity.URL
 	for fss.scanner.Scan() {
@@ -45,6 +47,7 @@ func (fss *fileSystemStorage) GetByHash(ctx context.Context, hash string) (*enti
 	return nil, nil //nolint:nilnil
 }
 
+// GetByURL get by URL.
 func (fss *fileSystemStorage) GetByURL(ctx context.Context, url string) (*entity.URL, error) {
 	var e *entity.URL
 	for fss.scanner.Scan() {
@@ -60,6 +63,7 @@ func (fss *fileSystemStorage) GetByURL(ctx context.Context, url string) (*entity
 	return nil, nil //nolint:nilnil
 }
 
+// Add create new short URL and save in file system.
 func (fss *fileSystemStorage) Add(
 	ctx context.Context,
 	key string,
@@ -76,6 +80,7 @@ func (fss *fileSystemStorage) Add(
 	return url, fss.encoder.Encode(url)
 }
 
+// GetAll get all short URLs.
 func (fss *fileSystemStorage) GetAll(ctx context.Context) ([]*entity.URL, error) {
 	res := make([]*entity.URL, 0)
 	var e entity.URL
@@ -90,6 +95,7 @@ func (fss *fileSystemStorage) GetAll(ctx context.Context) ([]*entity.URL, error)
 	return res, nil
 }
 
+// AddBatch add multiple short URLs.
 func (fss *fileSystemStorage) AddBatch(ctx context.Context, b []*entity.URL) (int, error) {
 	encoder := json.NewEncoder(fss.file)
 	for _, v := range b {
@@ -102,6 +108,7 @@ func (fss *fileSystemStorage) AddBatch(ctx context.Context, b []*entity.URL) (in
 	return len(b), nil
 }
 
+// GetAllURLsByUser get all URLs by user.
 func (fss *fileSystemStorage) GetAllURLsByUser(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -128,13 +135,16 @@ func (fss *fileSystemStorage) DeleteURLsByUser(ctx context.Context, userID uuid.
 	return nil
 }
 
+// Ping DeleteURLsByUser TODO need implement.
 func (fss *fileSystemStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
+// Truncate DeleteURLsByUser TODO need implement.
 func (fss *fileSystemStorage) Truncate() {
 }
 
+// Close DeleteURLsByUser close file.
 func (fss *fileSystemStorage) Close() error {
 	return fss.file.Close()
 }

@@ -11,6 +11,7 @@ import (
 
 const maxAgeCookie = 3600
 
+// CreateCookieWithUserID create cookie.
 func CreateCookieWithUserID(l *zerolog.Logger, cryptoKey []byte) *http.Cookie {
 	// Генерация UUID
 	newUUID, err := uuid.NewRandom()
@@ -40,6 +41,7 @@ func CreateCookieWithUserID(l *zerolog.Logger, cryptoKey []byte) *http.Cookie {
 	}
 }
 
+// Decrypt.
 func Decrypt(enc string, cryptoKey []byte) (*string, error) {
 	binid, err := hex.DecodeString(enc)
 	if err != nil {

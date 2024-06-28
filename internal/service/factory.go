@@ -7,8 +7,10 @@ import (
 	"github.com/vagafonov/shortener/internal/contract"
 )
 
+// ErrUndefinedServiceType error for undefined service type.
 var ErrUndefinedServiceType = errors.New("undefined service type")
 
+// ServiceURLFactory return concrete service URL.
 func ServiceURLFactory(cnt *container.Container, t string) (contract.Service, error) {
 	// TODO use enum
 	switch t {
@@ -26,6 +28,7 @@ func ServiceURLFactory(cnt *container.Container, t string) (contract.Service, er
 	}
 }
 
+// ServiceHealthCheckFactory return concrete service health.
 func ServiceHealthCheckFactory(cnt *container.Container, t string) (contract.ServiceHealthCheck, error) {
 	// TODO use enum
 	switch t {

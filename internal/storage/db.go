@@ -18,12 +18,14 @@ type dbStorage struct {
 	connection *sql.DB
 }
 
+// NewDBStorage Constructor for DBStorage.
 func NewDBStorage(db *sql.DB) contract.Storage {
 	return &dbStorage{
 		connection: db,
 	}
 }
 
+// GetByHash get short urls by hash from database.
 func (s *dbStorage) GetByHash(ctx context.Context, key string) (*entity.URL, error) {
 	q := `SELECT id, short, original, user_id, deleted_at FROM urls WHERE short = $1`
 	row := s.connection.QueryRowContext(ctx, q, key)
@@ -40,6 +42,7 @@ func (s *dbStorage) GetByHash(ctx context.Context, key string) (*entity.URL, err
 	return &url, nil
 }
 
+// GetByURL get short urls by url from database.
 func (s *dbStorage) GetByURL(ctx context.Context, val string) (*entity.URL, error) {
 	q := `SELECT id, short, original FROM urls WHERE original = $1`
 	row := s.connection.QueryRowContext(ctx, q, val)
@@ -59,6 +62,7 @@ func (s *dbStorage) GetByURL(ctx context.Context, val string) (*entity.URL, erro
 	return &url, nil
 }
 
+// Add create new short url in database.
 func (s *dbStorage) Add(ctx context.Context, hash string, url string, userID uuid.UUID) (*entity.URL, error) {
 	q := `INSERT INTO urls (id, short, original, user_id) VALUES ($1, $2, $3, $4)`
 	id := uuid.New()
@@ -84,6 +88,7 @@ func (s *dbStorage) Add(ctx context.Context, hash string, url string, userID uui
 	}, nil
 }
 
+// GetAll get all short urls from database.
 func (s *dbStorage) GetAll(ctx context.Context) ([]*entity.URL, error) {
 	q := `SELECT id, short, original FROM urls LIMIT 1000`
 	rows, err := s.connection.QueryContext(ctx, q)
@@ -110,6 +115,7 @@ func (s *dbStorage) GetAll(ctx context.Context) ([]*entity.URL, error) {
 	return urls, nil
 }
 
+// AddBatch create multiple short  urls in database.
 func (s *dbStorage) AddBatch(ctx context.Context, b []*entity.URL) (int, error) {
 	bufIns := make([]*entity.URL, 0)
 	inserted := 0
@@ -156,6 +162,7 @@ func (s *dbStorage) batchInsert(ctx context.Context, urls []*entity.URL) error {
 	return tx.Commit()
 }
 
+// GetAllURLsByUser Get all urls by user from database.
 func (s *dbStorage) GetAllURLsByUser(ctx context.Context, userID uuid.UUID, baseURL string) ([]*entity.URL, error) {
 	q := `SELECT id, short, original FROM urls WHERE user_id = $1 LIMIT 1000`
 
@@ -184,6 +191,7 @@ func (s *dbStorage) GetAllURLsByUser(ctx context.Context, userID uuid.UUID, base
 	return urls, nil
 }
 
+// DeleteURLsByUser delete URLS by user.
 func (s *dbStorage) DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batch []string) error {
 	tx, err := s.connection.Begin()
 	if err != nil {
@@ -219,13 +227,16 @@ func (s *dbStorage) DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batc
 	return tx.Commit()
 }
 
+// Ping not implemented.
 func (s *dbStorage) Ping(ctx context.Context) error {
 	return s.connection.PingContext(ctx)
 }
 
+// Truncate not implemented.
 func (s *dbStorage) Truncate() {
 }
 
+// Close not implemented.
 func (s *dbStorage) Close() error {
 	return nil
 }

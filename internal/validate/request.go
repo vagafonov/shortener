@@ -10,16 +10,19 @@ import (
 	"github.com/vagafonov/shortener/internal/request"
 )
 
+// ErrValidateEmpty error for empty input.
 var ErrValidateEmpty = errors.New("empty")
 
 type validator struct {
 	logger *zerolog.Logger
 }
 
+// NewValidator Constructor for Validator.
 func NewValidator(l *zerolog.Logger) *validator {
 	return &validator{logger: l}
 }
 
+// ShortenRequest create ShortenRequest from input.
 func (v *validator) ShortenRequest(buf bytes.Buffer) *request.ShortenRequest {
 	var shortenReq request.ShortenRequest
 	if err := json.Unmarshal(buf.Bytes(), &shortenReq); err != nil {
@@ -31,6 +34,7 @@ func (v *validator) ShortenRequest(buf bytes.Buffer) *request.ShortenRequest {
 	return &shortenReq
 }
 
+// ShortenBatchRequest create ShortenBatchRequest from input.
 func (v *validator) ShortenBatchRequest(ctx context.Context, buf bytes.Buffer) ([]request.ShortenBatchRequest, error) {
 	var req []request.ShortenBatchRequest
 	if err := json.Unmarshal(buf.Bytes(), &req); err != nil {
@@ -54,6 +58,7 @@ func (v *validator) ShortenBatchRequest(ctx context.Context, buf bytes.Buffer) (
 	return req, nil
 }
 
+// DeleteUserURLsRequest create slice of string for DeleteUserURLsRequest.
 func (v *validator) DeleteUserURLsRequest(ctx context.Context, buf bytes.Buffer) ([]string, error) {
 	var req []string
 	if err := json.Unmarshal(buf.Bytes(), &req); err != nil {

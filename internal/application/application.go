@@ -24,16 +24,19 @@ import (
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
+// Application Contains routes and starts the server.
 type Application struct {
 	cnt *container.Container
 }
 
+// Constructor for application.
 func NewApplication(cnt *container.Container) *Application {
 	return &Application{
 		cnt: cnt,
 	}
 }
 
+// Serve run server.
 func (a *Application) Serve() error {
 	ctx := context.Background()
 	if a.cnt.GetConfig().FileStoragePath != "" {
@@ -53,6 +56,7 @@ func (a *Application) Serve() error {
 	return nil
 }
 
+// Routes register routes and middlewares.
 func (a *Application) Routes() *chi.Mux {
 	r := chi.NewRouter()
 	// Middleware для логирования запросов

@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 )
 
-// Функция шифрования.
+// Encrypt Encryption function.
 func Encrypt(stringToEncrypt string, key []byte) ([]byte, error) {
 	plaintext := []byte(stringToEncrypt)
 
