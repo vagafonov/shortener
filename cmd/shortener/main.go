@@ -13,7 +13,7 @@ import (
 	"github.com/vagafonov/shortener/internal/logger"
 	"github.com/vagafonov/shortener/internal/service"
 	"github.com/vagafonov/shortener/internal/storage"
-	hasher "github.com/vagafonov/shortener/pkg/hasher"
+	"github.com/vagafonov/shortener/pkg/hasher"
 )
 
 type options struct {
@@ -40,6 +40,7 @@ func main() {
 		[]byte("0123456789abcdef"),
 		10, //nolint:gomnd
 		2,  //nolint:gomnd
+		config.ModeDev,
 	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	var strg contract.Storage
@@ -60,7 +61,7 @@ func main() {
 		}
 	}
 
-	hr := hasher.NewRandHasher()
+	hr := hasher.NewRandHasher(hasher.Alphabet)
 	cnt := container.NewContainer(
 		cfg,
 		strg,

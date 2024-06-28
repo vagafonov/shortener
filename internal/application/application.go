@@ -8,10 +8,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	_ "net/http/pprof" //nolint:gosec
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
+	"github.com/vagafonov/shortener/internal/config"
 	"github.com/vagafonov/shortener/internal/container"
 	"github.com/vagafonov/shortener/internal/cookie"
 	"github.com/vagafonov/shortener/internal/customerror"
@@ -59,6 +62,9 @@ func (a *Application) Routes() *chi.Mux {
 	r.Use(func(handler http.Handler) http.Handler {
 		return mw.WithUserIDCookie(handler, a.cnt.GetConfig().CryptoKey)
 	})
+	if a.cnt.GetConfig().Mode == config.ModeDev {
+		r.Mount("/debug", chimiddleware.Profiler())
+	}
 	r.Get("/{short_url}", a.getShortURL)
 	r.Post("/", a.createShortURL)
 	r.Post("/api/", a.createShortURL)
