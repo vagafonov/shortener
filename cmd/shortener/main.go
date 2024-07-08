@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/rs/zerolog"
@@ -16,6 +17,12 @@ import (
 	"github.com/vagafonov/shortener/pkg/hasher"
 )
 
+var (
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+)
+
 type options struct {
 	ServerURL       string `env:"SERVER_ADDRESS"`
 	ResultURL       string `env:"BASE_URL"`
@@ -24,6 +31,7 @@ type options struct {
 }
 
 func main() {
+	printBuildInfo()
 	opt := &options{
 		ServerURL:       "",
 		ResultURL:       "",
@@ -112,4 +120,11 @@ func setServiceStorage(cnt *container.Container, lr *zerolog.Logger) {
 		lr.Err(err).Send()
 	}
 	cnt.SetServiceURL(servURL)
+}
+
+//nolint:forbidigo
+func printBuildInfo() {
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
 }
