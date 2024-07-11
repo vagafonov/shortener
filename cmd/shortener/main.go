@@ -49,7 +49,7 @@ func main() {
 	var fstorage contract.Storage
 
 	if cfg.DatabaseDSN != "" {
-		db, err := prepareDB(lr, cfg)
+		db, err = prepareDB(lr, cfg)
 		if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 			lr.Err(err).Send()
 		}
