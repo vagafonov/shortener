@@ -37,6 +37,7 @@ func (s *FactoryTestSuite) SetupSuite() {
 		"http://test:8080",
 		fileStoragePath,
 		"test",
+		"",
 		[]byte("0123456789abcdef"),
 		10,
 		3,

@@ -21,6 +21,7 @@ import (
 	"github.com/vagafonov/shortener/internal/middleware"
 	"github.com/vagafonov/shortener/internal/response"
 	"github.com/vagafonov/shortener/internal/validate"
+	"github.com/vagafonov/shortener/pkg/encrypting"
 	"github.com/vagafonov/shortener/pkg/entity"
 )
 
@@ -37,16 +38,8 @@ func NewApplication(cnt *container.Container) *Application {
 }
 
 // Serve run server.
-func (a *Application) Serve() error {
-	ctx := context.Background()
-	if a.cnt.GetConfig().FileStoragePath != "" {
-		restored, err := a.cnt.GetServiceURL().RestoreURLs(ctx, a.cnt.GetConfig().FileStoragePath)
-		if err != nil {
-			a.cnt.GetLogger().Info().Msgf("cannot restore URLs: %s", err.Error())
-		}
-		a.cnt.GetLogger().Info().Msgf("restored urls %v", restored)
-	}
-
+func (a *Application) Serve(ctx context.Context) error {
+	a.restoreURLs(ctx)
 	a.cnt.GetLogger().Info().Msgf("server started and listen %s", a.cnt.GetConfig().ServerURL)
 	err := http.ListenAndServe(a.cnt.GetConfig().ServerURL, a.Routes()) //nolint:gosec
 	if err != nil {
@@ -54,6 +47,36 @@ func (a *Application) Serve() error {
 	}
 
 	return nil
+}
+
+// ServeHTTPS Serve run HTTPS server.
+func (a *Application) ServeHTTPS(ctx context.Context) error {
+	a.restoreURLs(ctx)
+	_, err := encrypting.GenerateCertificate("localhost") // TODO
+	if err != nil {
+		a.cnt.GetLogger().Err(err).Msg("failed to generate certificate")
+	}
+
+	a.cnt.GetLogger().Info().Msgf("HTPS server started and listen %s", a.cnt.GetConfig().ServerURL)
+	//nolint:gosec
+	err = http.ListenAndServeTLS(a.cnt.GetConfig().ServerURL, "certs/server.crt", "certs/server.key", a.Routes())
+	if err != nil {
+		a.cnt.GetLogger().Err(err).Msg("fail to start TLS server")
+
+		return err
+	}
+
+	return nil
+}
+
+func (a *Application) restoreURLs(ctx context.Context) {
+	if a.cnt.GetConfig().FileStoragePath != "" {
+		restored, err := a.cnt.GetServiceURL().RestoreURLs(ctx, a.cnt.GetConfig().FileStoragePath)
+		if err != nil {
+			a.cnt.GetLogger().Info().Msgf("cannot restore URLs: %s", err.Error())
+		}
+		a.cnt.GetLogger().Info().Msgf("restored urls %v", restored)
+	}
 }
 
 // Routes register routes and middlewares.
@@ -278,7 +301,7 @@ func (a *Application) shortenBatch(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res.Header().Set("content-type", "application/json")
+	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusCreated)
 	_, err = res.Write(jsonRes)
 	if err != nil {
@@ -331,7 +354,7 @@ func (a *Application) userUrls(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res.Header().Set("content-type", "application/json")
+	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	_, err = res.Write(jsonRes)
 	if err != nil {
