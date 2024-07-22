@@ -8,5 +8,6 @@ func parseFlags(opt *options) {
 	flag.StringVar(&opt.FileStoragePath, "f", "/tmp/short-url-db.json", "file where stored short urls. if not specified, no data is saved") //nolint:lll
 	flag.StringVar(&opt.DatabaseDSN, "d", "", "database dsn")
 	flag.StringVar(&opt.EnableHTTPS, "s", "", "enable https")
+	flag.StringVar(&opt.ConfigFile, "c", "", "config file path")
 	flag.Parse()
 }

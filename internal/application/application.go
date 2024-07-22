@@ -57,7 +57,7 @@ func (a *Application) ServeHTTPS(ctx context.Context) error {
 		a.cnt.GetLogger().Err(err).Msg("failed to generate certificate")
 	}
 
-	a.cnt.GetLogger().Info().Msgf("HTPS server started and listen %s", a.cnt.GetConfig().ServerURL)
+	a.cnt.GetLogger().Info().Msgf("HTPS server started and listen URL: %s", a.cnt.GetConfig().ServerURL)
 	//nolint:gosec
 	err = http.ListenAndServeTLS(a.cnt.GetConfig().ServerURL, "certs/server.crt", "certs/server.key", a.Routes())
 	if err != nil {

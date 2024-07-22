@@ -30,6 +30,7 @@ type options struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	EnableHTTPS     string `env:"ENABLE_HTTPS"`
+	ConfigFile      string `env:"CONFIG_FILE"`
 }
 
 func main() {
@@ -42,18 +43,8 @@ func main() {
 	}
 	parseFlags(opt)
 	parseEnv(opt)
+	cfg := parseConfFile(opt)
 
-	cfg := config.NewConfig(
-		opt.ServerURL,
-		opt.ResultURL,
-		opt.FileStoragePath,
-		opt.DatabaseDSN,
-		opt.EnableHTTPS,
-		[]byte("0123456789abcdef"),
-		10, //nolint:mnd,gomnd
-		2,  //nolint:mnd,gomnd
-		config.ModeDev,
-	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	var strg contract.Storage
 	var err error
@@ -134,8 +125,8 @@ func printBuildInfo() {
 	fmt.Printf("Build commit: %s\n", buildCommit)
 }
 
-func runServer(ctx context.Context, isEnableHTTPS string, app *application.Application) error {
-	if isEnableHTTPS != "" {
+func runServer(ctx context.Context, isEnableHTTPS bool, app *application.Application) error {
+	if isEnableHTTPS {
 		return app.ServeHTTPS(ctx)
 	}
 
