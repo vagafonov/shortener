@@ -22,6 +22,7 @@ type Config struct {
 	LogLevel            zerolog.Level
 	FileStoragePath     string
 	DatabaseDSN         string
+	EnableHTTPS         string
 	CryptoKey           []byte
 	DeleteURLsBatchSize int
 	DeleteURLsJobsCount int
@@ -34,6 +35,7 @@ func NewConfig(
 	resultURL string,
 	fileStoragePath string,
 	databaseDSN string,
+	enableHTTPS string,
 	cryptoKey []byte,
 	deleteURLsBatchSize int,
 	deleteURLsJobsCount int,
@@ -46,6 +48,7 @@ func NewConfig(
 		LogLevel:            zerolog.DebugLevel,
 		FileStoragePath:     fileStoragePath,
 		DatabaseDSN:         databaseDSN,
+		EnableHTTPS:         enableHTTPS,
 		CryptoKey:           cryptoKey,
 		DeleteURLsBatchSize: deleteURLsBatchSize,
 		DeleteURLsJobsCount: deleteURLsJobsCount,

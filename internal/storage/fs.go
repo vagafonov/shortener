@@ -21,7 +21,7 @@ type fileSystemStorage struct {
 func NewFileSystemStorage(fileName string) (contract.Storage, error) {
 	fss := fileSystemStorage{}
 	var err error
-	fss.file, err = os.OpenFile(fileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666) //nolint:gofumpt, gomnd
+	fss.file, err = os.OpenFile(fileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666) //nolint:gofumpt,gomnd,mnd
 	if err != nil {
 		return nil, err
 	}

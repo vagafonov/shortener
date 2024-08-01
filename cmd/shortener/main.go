@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -28,9 +29,11 @@ type options struct {
 	ResultURL       string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
+	EnableHTTPS     string `env:"ENABLE_HTTPS"`
 }
 
 func main() {
+	ctx := context.Background()
 	printBuildInfo()
 	opt := &options{
 		ServerURL:       "",
@@ -45,9 +48,10 @@ func main() {
 		opt.ResultURL,
 		opt.FileStoragePath,
 		opt.DatabaseDSN,
+		opt.EnableHTTPS,
 		[]byte("0123456789abcdef"),
-		10, //nolint:gomnd
-		2,  //nolint:gomnd
+		10, //nolint:mnd,gomnd
+		2,  //nolint:mnd,gomnd
 		config.ModeDev,
 	)
 	lr := logger.CreateLogger(cfg.LogLevel)
@@ -84,7 +88,8 @@ func main() {
 	setHealthCheckService(cnt, lr)
 
 	app := application.NewApplication(cnt)
-	if err := app.Serve(); err != nil {
+	err = runServer(ctx, cfg.EnableHTTPS, app)
+	if err != nil {
 		lr.Err(err).Send()
 	}
 }
@@ -127,4 +132,12 @@ func printBuildInfo() {
 	fmt.Printf("Build version: %s\n", buildVersion)
 	fmt.Printf("Build date: %s\n", buildDate)
 	fmt.Printf("Build commit: %s\n", buildCommit)
+}
+
+func runServer(ctx context.Context, isEnableHTTPS string, app *application.Application) error {
+	if isEnableHTTPS != "" {
+		return app.ServeHTTPS(ctx)
+	}
+
+	return app.Serve(ctx)
 }
