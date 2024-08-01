@@ -9,6 +9,9 @@ import (
 	"io"
 	"net/http"
 	_ "net/http/pprof" //nolint:gosec
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -28,6 +31,7 @@ import (
 // Application Contains routes and starts the server.
 type Application struct {
 	cnt *container.Container
+	srv *http.Server
 }
 
 // Constructor for application.
@@ -40,11 +44,29 @@ func NewApplication(cnt *container.Container) *Application {
 // Serve run server.
 func (a *Application) Serve(ctx context.Context) error {
 	a.restoreURLs(ctx)
+	//nolint:gosec
+	a.srv = &http.Server{
+		Addr:    a.cnt.GetConfig().ServerURL,
+		Handler: a.Routes(),
+	}
+	idleConnsClosed := make(chan struct{})
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	go func(ctx context.Context) {
+		<-sigint
+		if err := a.srv.Shutdown(ctx); err != nil {
+			a.cnt.GetLogger().Err(err).Msg("fail to shutdown server")
+		}
+		close(idleConnsClosed)
+	}(ctx)
+
 	a.cnt.GetLogger().Info().Msgf("server started and listen %s", a.cnt.GetConfig().ServerURL)
-	err := http.ListenAndServe(a.cnt.GetConfig().ServerURL, a.Routes()) //nolint:gosec
-	if err != nil {
+	err := a.srv.ListenAndServe()
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
+	<-idleConnsClosed
+	a.cnt.GetLogger().Info().Msg("server shutdown gracefully")
 
 	return nil
 }
@@ -52,19 +74,35 @@ func (a *Application) Serve(ctx context.Context) error {
 // ServeHTTPS Serve run HTTPS server.
 func (a *Application) ServeHTTPS(ctx context.Context) error {
 	a.restoreURLs(ctx)
-	_, err := encrypting.GenerateCertificate("localhost") // TODO
+	//nolint:gosec
+	a.srv = &http.Server{
+		Addr:    a.cnt.GetConfig().ServerURL,
+		Handler: a.Routes(),
+	}
+	_, err := encrypting.GenerateCertificate("localhost")
 	if err != nil {
 		a.cnt.GetLogger().Err(err).Msg("failed to generate certificate")
 	}
+	idleConnsClosed := make(chan struct{})
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	go func(ctx context.Context) {
+		<-sigint
+		if err := a.srv.Shutdown(ctx); err != nil {
+			a.cnt.GetLogger().Err(err).Msg("fail to shutdown server")
+		}
+		close(idleConnsClosed)
+	}(ctx)
 
 	a.cnt.GetLogger().Info().Msgf("HTPS server started and listen URL: %s", a.cnt.GetConfig().ServerURL)
-	//nolint:gosec
-	err = http.ListenAndServeTLS(a.cnt.GetConfig().ServerURL, "certs/server.crt", "certs/server.key", a.Routes())
-	if err != nil {
+	err = a.srv.ListenAndServeTLS("certs/server.crt", "certs/server.key")
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		a.cnt.GetLogger().Err(err).Msg("fail to start TLS server")
 
 		return err
 	}
+	<-idleConnsClosed
+	a.cnt.GetLogger().Info().Msg("https server shutdown gracefully")
 
 	return nil
 }

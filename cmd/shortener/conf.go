@@ -19,18 +19,17 @@ type conf struct {
 }
 
 func parseConfFile(opt *options) *config.Config { //nolint:cyclop
-	var enableHTTPS bool
-	var err error
-	if opt.EnableHTTPS != "" {
-		if enableHTTPS, err = strconv.ParseBool(opt.EnableHTTPS); err == nil {
-			log.Fatal(err)
-		}
-	}
-
 	if opt == nil {
 		log.Fatal("no configuration file provided")
 	}
 
+	var enableHTTPS bool
+	var err error
+	if opt.EnableHTTPS != "" {
+		if enableHTTPS, err = strconv.ParseBool(opt.EnableHTTPS); err != nil {
+			log.Fatal(err)
+		}
+	}
 	cfg := config.NewConfig(
 		opt.ServerURL,
 		opt.ResultURL,
