@@ -53,7 +53,7 @@ func (s *FunctionalTestSuite) SetupSuite() {
 		"http://test:8080",
 		fileStoragePath,
 		"test",
-		"",
+		false,
 		[]byte("0123456789abcdef"),
 		10,
 		3,
