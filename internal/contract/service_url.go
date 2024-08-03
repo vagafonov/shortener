@@ -21,4 +21,5 @@ type Service interface {
 	RestoreURLs(ctx context.Context, fileName string) (int, error)
 	GetUserURLs(ctx context.Context, userID uuid.UUID, baseURL string) ([]*entity.URL, error)
 	DeleteUserURLs(ctx context.Context, userID uuid.UUID, shortURLs []string, batchSize int, jobsCount int) error
+	GetStat(ctx context.Context) (*entity.Stat, error)
 }

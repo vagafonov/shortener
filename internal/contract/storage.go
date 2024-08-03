@@ -8,7 +8,7 @@ import (
 )
 
 // Storage abstract interface for storage.
-type Storage interface {
+type Storage interface { //nolint:interfacebloat
 	GetByHash(ctx context.Context, hash string) (*entity.URL, error)
 	GetByURL(ctx context.Context, url string) (*entity.URL, error)
 	Add(ctx context.Context, hash string, url string, userID uuid.UUID) (*entity.URL, error)
@@ -16,6 +16,7 @@ type Storage interface {
 	GetAll(ctx context.Context) ([]*entity.URL, error)
 	GetAllURLsByUser(ctx context.Context, userID uuid.UUID, baseURL string) ([]*entity.URL, error)
 	DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batch []string) error
+	GetStat(ctx context.Context) (*entity.Stat, error)
 	Ping(ctx context.Context) error
 	Truncate()
 	Close() error

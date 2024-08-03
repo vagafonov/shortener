@@ -58,6 +58,7 @@ func (s *FunctionalTestSuite) SetupSuite() {
 		10,
 		3,
 		config.ModeTest,
+		"192.168.0.1/24",
 	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	s.cnt = container.NewContainer(
@@ -619,5 +620,54 @@ func (s *FunctionalTestSuite) TestDeleteUserURLs() {
 		s.Require().NoError(err)
 		defer resp.Body.Close()
 		s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+	})
+}
+
+func (s *FunctionalTestSuite) TestInternalStats() {
+	ctx := context.Background()
+	ts := httptest.NewServer(s.app.Routes())
+	defer ts.Close()
+	s.Run("successfully", func() {
+		s.serviceURL.SetGetStatResult(&entity.Stat{
+			Urls:  1,
+			Users: 1,
+		}, nil)
+
+		r, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/api/internal/stats", nil)
+		s.Require().NoError(err)
+		r.Header.Set("X-Real-IP", "192.168.0.1")
+
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusOK, resp.StatusCode)
+		b, err := io.ReadAll(resp.Body)
+		s.Require().NoError(err)
+		s.Require().Equal(`application/json`, resp.Header.Get("Content-Type"))
+		s.Require().JSONEq(`{"urls":1,"users":1}`, string(b))
+	})
+
+	s.Run("not in subnet", func() {
+		r, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/api/internal/stats", nil)
+		s.Require().NoError(err)
+		r.Header.Set("X-Real-IP", "0.0.0.0")
+
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusForbidden, resp.StatusCode)
+	})
+
+	s.Run("empty config value for trusted_subnet", func() {
+		s.cnt.GetConfig().TrustedSubnet = ""
+
+		r, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/api/internal/stats", nil)
+		s.Require().NoError(err)
+		r.Header.Set("X-Real-IP", "0.0.0.0")
+
+		resp, err := http.DefaultClient.Do(r)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+		s.Require().Equal(http.StatusForbidden, resp.StatusCode)
 	})
 }

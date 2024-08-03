@@ -55,6 +55,7 @@ func (s *ServiceURLMemorySuite) SetupSuite() {
 		10,
 		3,
 		config.ModeTest,
+		"",
 	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	s.cnt = container.NewContainer(

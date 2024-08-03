@@ -29,6 +29,9 @@ type MemoryStorageMock struct {
 	getAllURLsByUserError  error
 
 	deleteURLsByUserError error
+
+	getStatEntity *entity.Stat
+	getStatError  error
 }
 
 // Constructor for MemoryStorageMock.
@@ -108,6 +111,17 @@ func (s *MemoryStorageMock) DeleteURLsByUser(ctx context.Context, userID uuid.UU
 // SetDeleteURLsByUserResponse.
 func (s *MemoryStorageMock) SetDeleteURLsByUserResponse(err error) {
 	s.deleteURLsByUserError = err
+}
+
+// GetStat.
+func (s *MemoryStorageMock) GetStat(ctx context.Context) (*entity.Stat, error) {
+	return s.getStatEntity, s.getStatError
+}
+
+// SetGetStatResponse.
+func (s *MemoryStorageMock) SetGetStatResponse(e *entity.Stat, err error) {
+	s.getStatEntity = e
+	s.getStatError = err
 }
 
 // Ping.

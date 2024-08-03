@@ -16,6 +16,7 @@ type conf struct {
 	FileStoragePath string `json:"file_storage_path"`
 	DatabaseDSN     string `json:"database_dsn"`
 	EnableHTTPS     bool   `json:"enable_https"`
+	TrustedSubnet   string `json:"trusted_subnet"`
 }
 
 func parseConfFile(opt *options) *config.Config { //nolint:cyclop
@@ -40,6 +41,7 @@ func parseConfFile(opt *options) *config.Config { //nolint:cyclop
 		10, //nolint:mnd,gomnd
 		2,  //nolint:mnd,gomnd
 		config.ModeDev,
+		opt.TrustedSubnet,
 	)
 
 	if opt.ConfigFile == "" {
