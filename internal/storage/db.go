@@ -227,6 +227,26 @@ func (s *dbStorage) DeleteURLsByUser(ctx context.Context, userID uuid.UUID, batc
 	return tx.Commit()
 }
 
+// GetStat Returning internal stat from DB.
+func (s *dbStorage) GetStat(ctx context.Context) (*entity.Stat, error) {
+	q := `SELECT count(*) as urls, count(distinct user_id) as users FROM urls`
+	row := s.connection.QueryRowContext(ctx, q)
+	if row.Err() != nil {
+		return nil, fmt.Errorf("sql query error: %w", row.Err())
+	}
+	var stat entity.Stat
+	err := row.Scan(&stat.Urls, &stat.Users)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil //nolint:nilnil
+		}
+
+		return nil, fmt.Errorf("cannot get stat: %w", err)
+	}
+
+	return &stat, nil
+}
+
 // Ping not implemented.
 func (s *dbStorage) Ping(ctx context.Context) error {
 	return s.connection.PingContext(ctx)

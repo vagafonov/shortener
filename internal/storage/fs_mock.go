@@ -94,6 +94,11 @@ func (s *FileSystemStorageMock) SetDeleteURLsByUserResponse(err error) {
 	s.deleteURLsByUserError = err
 }
 
+// GetStat TODO need implement.
+func (s *FileSystemStorageMock) GetStat(ctx context.Context) (*entity.Stat, error) {
+	return nil, nil //nolint:nilnil
+}
+
 // Ping mock.
 func (s *FileSystemStorageMock) Ping(ctx context.Context) error { return nil }
 

@@ -31,6 +31,7 @@ type options struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	EnableHTTPS     string `env:"ENABLE_HTTPS"`
 	ConfigFile      string `env:"CONFIG_FILE"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
 }
 
 func main() {

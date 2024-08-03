@@ -135,6 +135,11 @@ func (fss *fileSystemStorage) DeleteURLsByUser(ctx context.Context, userID uuid.
 	return nil
 }
 
+// GetStat TODO need implement.
+func (fss *fileSystemStorage) GetStat(ctx context.Context) (*entity.Stat, error) {
+	return nil, nil //nolint:nilnil
+}
+
 // Ping DeleteURLsByUser TODO need implement.
 func (fss *fileSystemStorage) Ping(ctx context.Context) error {
 	return nil

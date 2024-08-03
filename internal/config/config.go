@@ -27,6 +27,7 @@ type Config struct {
 	DeleteURLsBatchSize int
 	DeleteURLsJobsCount int
 	Mode                Mode
+	TrustedSubnet       string
 }
 
 // Constructor for Config.
@@ -40,6 +41,7 @@ func NewConfig(
 	deleteURLsBatchSize int,
 	deleteURLsJobsCount int,
 	mode Mode,
+	trustedSubnet string,
 ) *Config {
 	return &Config{
 		ServerURL:           serverURL,
@@ -53,5 +55,6 @@ func NewConfig(
 		DeleteURLsBatchSize: deleteURLsBatchSize,
 		DeleteURLsJobsCount: deleteURLsJobsCount,
 		Mode:                mode,
+		TrustedSubnet:       trustedSubnet,
 	}
 }

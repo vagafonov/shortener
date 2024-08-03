@@ -20,6 +20,8 @@ type URLServiceMock struct {
 	getUserURLsEntities       []*entity.URL
 	getUserURLsError          error
 	deleteUserURLsError       error
+	getStatEntity             *entity.Stat
+	getStatError              error
 }
 
 // NewURLServiceMock Constructor for URLServiceMock.
@@ -101,4 +103,15 @@ func (s *URLServiceMock) DeleteUserURLs(
 // SetDeleteUserURLsResult mock.
 func (s *URLServiceMock) SetDeleteUserURLsResult(err error) {
 	s.deleteUserURLsError = err
+}
+
+// DeleteUserURLs mock.
+func (s *URLServiceMock) GetStat(ctx context.Context) (*entity.Stat, error) {
+	return s.getStatEntity, s.getStatError
+}
+
+// SetDeleteUserURLsResult mock.
+func (s *URLServiceMock) SetGetStatResult(stat *entity.Stat, err error) {
+	s.getStatEntity = stat
+	s.getStatError = err
 }

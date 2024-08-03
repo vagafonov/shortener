@@ -154,6 +154,21 @@ func (mr *MockStorageMockRecorder) GetByURL(ctx, url interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByURL", reflect.TypeOf((*MockStorage)(nil).GetByURL), ctx, url)
 }
 
+// GetStat mocks base method.
+func (m *MockStorage) GetStat(ctx context.Context) (*entity.Stat, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStat", ctx)
+	ret0, _ := ret[0].(*entity.Stat)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetStat indicates an expected call of GetStat.
+func (mr *MockStorageMockRecorder) GetStat(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStat", reflect.TypeOf((*MockStorage)(nil).GetStat), ctx)
+}
+
 // Ping mocks base method.
 func (m *MockStorage) Ping(ctx context.Context) error {
 	m.ctrl.T.Helper()

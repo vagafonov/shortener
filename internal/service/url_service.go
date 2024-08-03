@@ -175,3 +175,8 @@ func (s *urlService) batchDeleteConsumer(ctx context.Context, ch chan []string, 
 	wg.Wait()
 	s.logger.Debug().Msg("batch delete consumer completed")
 }
+
+// GetStat Internal stat.
+func (s *urlService) GetStat(ctx context.Context) (*entity.Stat, error) {
+	return s.mainStorage.GetStat(ctx)
+}
