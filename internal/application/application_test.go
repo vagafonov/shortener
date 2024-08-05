@@ -59,6 +59,7 @@ func (s *FunctionalTestSuite) SetupSuite() {
 		3,
 		config.ModeTest,
 		"192.168.0.1/24",
+		string(config.ProtocolHTTP),
 	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	s.cnt = container.NewContainer(

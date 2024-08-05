@@ -1,6 +1,8 @@
 package config
 
-import "github.com/rs/zerolog"
+import (
+	"github.com/rs/zerolog"
+)
 
 const shortURLLength = 8
 
@@ -13,6 +15,15 @@ const (
 
 // Mode application mode.
 type Mode string
+
+// application modes.
+const (
+	ProtocolHTTP Protocol = "http"
+	ProtocolGRPC Protocol = "grpc"
+)
+
+// Protocol application protocol.
+type Protocol string
 
 // Config.
 type Config struct {
@@ -28,6 +39,7 @@ type Config struct {
 	DeleteURLsJobsCount int
 	Mode                Mode
 	TrustedSubnet       string
+	Protocol            Protocol
 }
 
 // Constructor for Config.
@@ -42,7 +54,13 @@ func NewConfig(
 	deleteURLsJobsCount int,
 	mode Mode,
 	trustedSubnet string,
+	protocol string,
 ) *Config {
+	p := ProtocolHTTP
+	if protocol == string(ProtocolGRPC) {
+		p = ProtocolGRPC
+	}
+
 	return &Config{
 		ServerURL:           serverURL,
 		ResultURL:           resultURL,
@@ -56,5 +74,6 @@ func NewConfig(
 		DeleteURLsJobsCount: deleteURLsJobsCount,
 		Mode:                mode,
 		TrustedSubnet:       trustedSubnet,
+		Protocol:            p,
 	}
 }
