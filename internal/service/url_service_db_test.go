@@ -46,6 +46,7 @@ func (s *ServiceDBSuite) SetupSuite() {
 		3,
 		config.ModeTest,
 		"",
+		string(config.ProtocolHTTP),
 	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	hr := hasher.NewMockHasher()
