@@ -9,5 +9,7 @@ func parseFlags(opt *options) {
 	flag.StringVar(&opt.DatabaseDSN, "d", "", "database dsn")
 	flag.StringVar(&opt.EnableHTTPS, "s", "", "enable https")
 	flag.StringVar(&opt.ConfigFile, "c", "", "config file path")
+	flag.StringVar(&opt.ConfigFile, "t", "", "trusted subnet")
+	flag.StringVar(&opt.Protocol, "p", "", "protocol")
 	flag.Parse()
 }

@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package shortener;
+
+import "validate/validate.proto";
+
+option go_package = "shortener/proto";
+
+message UserURL {
+  string ShortURL = 1 [(validate.rules).message.required = true];
+  string OriginalURL = 2;
+}
+
+message CreateShortUrlRequestV1 {
+  string url = 1;
+}
+
+message CreateShortUrlResponseV1 {
+  string result = 1;
+}
+
+service UserServiceV1 {
+  rpc CreateShortURLV1(CreateShortUrlRequestV1) returns (CreateShortUrlResponseV1);
+}

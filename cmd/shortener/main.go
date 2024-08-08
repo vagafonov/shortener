@@ -31,6 +31,8 @@ type options struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	EnableHTTPS     string `env:"ENABLE_HTTPS"`
 	ConfigFile      string `env:"CONFIG_FILE"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
+	Protocol        string `env:"PROTOCOL"`
 }
 
 func main() {
@@ -78,8 +80,14 @@ func main() {
 	setServiceStorage(cnt, lr)
 	setHealthCheckService(cnt, lr)
 
-	app := application.NewApplication(cnt)
-	err = runServer(ctx, cfg.EnableHTTPS, app)
+	if cfg.Protocol == config.ProtocolGRPC {
+		app := application.NewGrpcApplication(cnt)
+		err = runGRPCServer(ctx, app)
+	} else {
+		app := application.NewApplication(cnt)
+		err = runHTTPServer(ctx, cfg.EnableHTTPS, app)
+	}
+
 	if err != nil {
 		lr.Err(err).Send()
 	}
@@ -125,10 +133,14 @@ func printBuildInfo() {
 	fmt.Printf("Build commit: %s\n", buildCommit)
 }
 
-func runServer(ctx context.Context, isEnableHTTPS bool, app *application.Application) error {
+func runHTTPServer(ctx context.Context, isEnableHTTPS bool, app *application.Application) error {
 	if isEnableHTTPS {
 		return app.ServeHTTPS(ctx)
 	}
 
+	return app.Serve(ctx)
+}
+
+func runGRPCServer(ctx context.Context, app *application.GrpcApplication) error {
 	return app.Serve(ctx)
 }

@@ -98,6 +98,11 @@ func (s *memoryStorage) DeleteURLsByUser(ctx context.Context, userID uuid.UUID, 
 	return nil
 }
 
+// GetStat TODO need implement.
+func (s *memoryStorage) GetStat(ctx context.Context) (*entity.Stat, error) {
+	return nil, nil //nolint:nilnil
+}
+
 // Ping not implemented.
 func (s *memoryStorage) Ping(ctx context.Context) error {
 	return nil

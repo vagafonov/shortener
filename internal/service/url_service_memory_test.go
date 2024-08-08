@@ -55,6 +55,8 @@ func (s *ServiceURLMemorySuite) SetupSuite() {
 		10,
 		3,
 		config.ModeTest,
+		"",
+		string(config.ProtocolHTTP),
 	)
 	lr := logger.CreateLogger(cfg.LogLevel)
 	s.cnt = container.NewContainer(

@@ -26,6 +26,7 @@ import (
 	"github.com/vagafonov/shortener/internal/validate"
 	"github.com/vagafonov/shortener/pkg/encrypting"
 	"github.com/vagafonov/shortener/pkg/entity"
+	"github.com/vagafonov/shortener/pkg/utils"
 )
 
 // Application Contains routes and starts the server.
@@ -140,6 +141,7 @@ func (a *Application) Routes() *chi.Mux {
 		r.Post("/shorten/batch", a.shortenBatch)
 		r.Get("/user/urls", a.userUrls)
 		r.Delete("/user/urls", a.deleteUserURLs)
+		r.Get("/internal/stats", a.internalStats)
 	})
 
 	return r
@@ -482,4 +484,38 @@ func (a *Application) getUserIDFromCookie(req *http.Request) (uuid.UUID, error) 
 	}
 
 	return decryptedUUID, err
+}
+
+func (a *Application) internalStats(res http.ResponseWriter, req *http.Request) {
+	if a.cnt.GetConfig().TrustedSubnet == "" ||
+		!utils.IsIPInSubnet(req.Header.Get("X-Real-IP"), a.cnt.GetConfig().TrustedSubnet) {
+		res.WriteHeader(http.StatusForbidden)
+
+		return
+	}
+
+	stat, err := a.cnt.GetServiceURL().GetStat(req.Context())
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot get stat")
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	jsonRes, err := json.Marshal(stat)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot encode stat to JSON")
+		res.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	_, err = res.Write(jsonRes)
+	if err != nil {
+		a.cnt.GetLogger().Warn().Str("error", err.Error()).Msg("cannot encode response to JSON")
+
+		return
+	}
 }
